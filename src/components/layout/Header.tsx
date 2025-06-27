@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Heart, User, LogOut, Settings, Bell, Search, Plus } from 'lucide-react';
+import { Menu, Heart, User, LogOut, Settings, Bell, Search, Plus, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 import { TouchOptimized } from '../ui/TouchOptimized';
@@ -95,6 +95,17 @@ export function Header({ onMenuToggle }: HeaderProps) {
                 </TouchOptimized>
               )}
 
+              {/* Privacy Button */}
+              <TouchOptimized>
+                <Link
+                  to="/privacy"
+                  className="p-2 lg:p-3 rounded-xl text-sage-600 hover:text-sage-700 hover:bg-sage-50 focus:outline-none focus:ring-2 focus:ring-sage-500 transition-colors"
+                  aria-label="Privacy controls"
+                >
+                  <Shield size={20} />
+                </Link>
+              </TouchOptimized>
+
               {/* Notifications */}
               <TouchOptimized>
                 <Link
@@ -171,6 +182,16 @@ export function Header({ onMenuToggle }: HeaderProps) {
                         >
                           <Settings size={18} />
                           <span>Settings</span>
+                        </Link>
+                        
+                        <Link
+                          to="/privacy"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-sage-50 transition-colors focus:outline-none focus:bg-sage-50"
+                          role="menuitem"
+                        >
+                          <Shield size={18} />
+                          <span>Privacy & Data</span>
                         </Link>
                         
                         <button

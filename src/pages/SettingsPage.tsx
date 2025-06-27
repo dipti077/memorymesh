@@ -14,6 +14,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ProfilePhotoUploader } from '../components/settings/ProfilePhotoUploader';
 import { LanguageSelector } from '../components/settings/LanguageSelector';
 import { ColorThemeSelector } from '../components/settings/ColorThemeSelector';
+import { Link } from 'react-router-dom';
 
 export function SettingsPage() {
   const { isMobile } = useDeviceDetection();
@@ -263,6 +264,25 @@ export function SettingsPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Privacy & Security</h2>
       
+      <div className="p-4 bg-sage-50 rounded-xl border border-sage-200 mb-6">
+        <div className="flex items-center space-x-3 mb-2">
+          <Shield className="w-5 h-5 text-sage-700" />
+          <h3 className="font-semibold text-sage-800">Enhanced Privacy Controls</h3>
+        </div>
+        <p className="text-sage-700 mb-3">
+          For comprehensive privacy and data management options, visit our dedicated Privacy Controls page.
+        </p>
+        <TouchOptimized>
+          <Link
+            to="/privacy"
+            className="inline-flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors"
+          >
+            <Shield size={16} />
+            <span>Privacy Controls</span>
+          </Link>
+        </TouchOptimized>
+      </div>
+      
       {/* Default Memory Visibility */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -395,22 +415,6 @@ export function SettingsPage() {
           />
           <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
         </label>
-      </div>
-      
-      {/* Data Export */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Data Export
-        </label>
-        <TouchOptimized>
-          <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
-            <Download size={18} />
-            <span>Export All My Data</span>
-          </button>
-        </TouchOptimized>
-        <p className="text-xs text-gray-500 mt-1">
-          Download all your memories, comments, and account data
-        </p>
       </div>
       
       {/* Change Password */}

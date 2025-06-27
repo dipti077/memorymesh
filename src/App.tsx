@@ -17,6 +17,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { SearchPage } from './pages/SearchPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { MessagingPage } from './pages/MessagingPage';
+import { PrivacyControlsPage } from './pages/PrivacyControlsPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -242,6 +243,23 @@ function App() {
               hasCompletedOnboarding ? (
                 <Layout>
                   <SettingsPage />
+                </Layout>
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
+        />
+        
+        <Route
+          path="/privacy"
+          element={
+            user ? (
+              hasCompletedOnboarding ? (
+                <Layout>
+                  <PrivacyControlsPage />
                 </Layout>
               ) : (
                 <Navigate to="/onboarding" replace />

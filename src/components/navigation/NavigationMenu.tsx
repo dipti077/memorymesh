@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, Calendar, Upload, Users, Gamepad2, Search, Settings, 
   User, Bell, Archive, ChevronDown, ChevronRight, Heart,
-  Sparkles, Tag, Layers, MessageCircle
+  Sparkles, Tag, Layers, MessageCircle, Shield
 } from 'lucide-react';
 import { NotificationBadge } from './NotificationBadge';
 import { TouchOptimized } from '../ui/TouchOptimized';
@@ -29,24 +29,28 @@ export function NavigationMenu({ isOpen, onClose, className = '' }: NavigationMe
 
   const navigationItems: NavItem[] = [
     {
+      id: 'dashboard',
       name: 'Dashboard',
       href: '/dashboard',
       icon: Home,
       description: 'Overview & quick actions'
     },
     {
+      id: 'timeline',
       name: 'Memory Timeline',
       href: '/timeline',
       icon: Calendar,
       description: 'Browse memories by date'
     },
     {
+      id: 'upload',
       name: 'Upload Memory',
       href: '/upload',
       icon: Upload,
       description: 'Add photos, videos & stories'
     },
     {
+      id: 'tagging',
       name: 'AI Tagging',
       href: '/tagging',
       icon: Sparkles,
@@ -54,29 +58,33 @@ export function NavigationMenu({ isOpen, onClose, className = '' }: NavigationMe
       badge: 5
     },
     {
+      id: 'family',
       name: 'Family Members',
       href: '/family',
       icon: Users,
       description: 'Manage family access',
       children: [
-        { name: 'View Members', href: '/family', icon: Users },
-        { name: 'Invite Members', href: '/family/invite', icon: Users },
-        { name: 'Member Roles', href: '/family/roles', icon: Users }
+        { id: 'view', name: 'View Members', href: '/family', icon: Users },
+        { id: 'invite', name: 'Invite Members', href: '/family/invite', icon: Users },
+        { id: 'roles', name: 'Member Roles', href: '/family/roles', icon: Users }
       ]
     },
     {
+      id: 'games',
       name: 'Memory Games',
       href: '/games',
       icon: Gamepad2,
       description: 'Cognitive wellness activities'
     },
     {
+      id: 'search',
       name: 'Search Memories',
       href: '/search',
       icon: Search,
       description: 'Find memories quickly'
     },
     {
+      id: 'activity',
       name: 'Family Activity',
       href: '/activity',
       icon: Bell,
@@ -84,6 +92,7 @@ export function NavigationMenu({ isOpen, onClose, className = '' }: NavigationMe
       badge: 3
     },
     {
+      id: 'messaging',
       name: 'Messaging',
       href: '/messaging',
       icon: MessageCircle,
@@ -91,26 +100,37 @@ export function NavigationMenu({ isOpen, onClose, className = '' }: NavigationMe
       badge: 2
     },
     {
+      id: 'archive',
       name: 'Archive',
       href: '/archive',
       icon: Archive,
       description: 'Organized memory categories',
       children: [
-        { name: 'By Year', href: '/archive/year', icon: Calendar },
-        { name: 'By Person', href: '/archive/person', icon: User },
-        { name: 'By Event', href: '/archive/event', icon: Heart }
+        { id: 'year', name: 'By Year', href: '/archive/year', icon: Calendar },
+        { id: 'person', name: 'By Person', href: '/archive/person', icon: User },
+        { id: 'event', name: 'By Event', href: '/archive/event', icon: Heart }
       ]
     }
   ];
 
   const secondaryItems: NavItem[] = [
     {
+      id: 'profile',
       name: 'Profile',
       href: '/profile',
       icon: User,
       description: 'Your account settings'
     },
     {
+      id: 'privacy',
+      name: 'Privacy & Data',
+      href: '/privacy',
+      icon: Shield,
+      description: 'Control your privacy',
+      badge: 1
+    },
+    {
+      id: 'notifications',
       name: 'Notifications',
       href: '/notifications',
       icon: Bell,
@@ -118,6 +138,7 @@ export function NavigationMenu({ isOpen, onClose, className = '' }: NavigationMe
       badge: 3
     },
     {
+      id: 'settings',
       name: 'Settings',
       href: '/settings',
       icon: Settings,
