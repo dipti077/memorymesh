@@ -1,270 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Shield, Lock, Eye, EyeOff, Download, Trash2, Users, 
-  Settings, Bell, Calendar, FileText, Check, X, 
-  AlertTriangle, Info, ChevronRight, ChevronDown, ChevronUp,
-  Database, Smartphone, Globe, ArrowLeft, Loader2,
-  UserPlus, Key, LogOut, RefreshCw, Clock, Save, Search,
-  MessageCircle, User
+  Shield, Lock, Eye, Users, Database, Download, Trash2, 
+  Settings, Bell, AlertCircle, FileText, Check, X, 
+  ChevronRight, ChevronDown, ChevronUp, Filter, Search,
+  User, MessageCircle, Calendar, Clock, Smartphone, 
+  ExternalLink, ToggleLeft, ToggleRight, HelpCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
 
 export function PrivacyControlsPage() {
   const { isMobile } = useDeviceDetection();
   const { user } = useAuth();
-  
   const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [exportProgress, setExportProgress] = useState(0);
-  const [isExporting, setIsExporting] = useState(false);
-  const [showConnectedApps, setShowConnectedApps] = useState(false);
   
   // Privacy Settings
   const [defaultVisibility, setDefaultVisibility] = useState<'private' | 'family' | 'public'>('family');
   const [locationTagging, setLocationTagging] = useState(true);
   const [faceRecognition, setFaceRecognition] = useState(true);
-  const [aiTagging, setAiTagging] = useState(true);
-  const [searchIndexing, setSearchIndexing] = useState(true);
-  const [shareWithThirdParties, setShareWithThirdParties] = useState(false);
-  const [retentionPeriod, setRetentionPeriod] = useState<'forever' | '5years' | '1year'>('forever');
+  const [thirdPartySharing, setThirdPartySharing] = useState(false);
+  const [aiProcessing, setAiProcessing] = useState(true);
   
-  // Family Privacy Settings
-  const [familyDefaultPermissions, setFamilyDefaultPermissions] = useState<'view' | 'comment' | 'edit'>('comment');
-  const [autoAcceptMembers, setAutoAcceptMembers] = useState(false);
-  const [requireApproval, setRequireApproval] = useState(true);
-  const [allowMemberInvites, setAllowMemberInvites] = useState(true);
+  // Data Management
+  const [autoBackup, setAutoBackup] = useState(true);
+  const [dataRetention, setDataRetention] = useState<'forever' | '5years' | '1year'>('forever');
+  const [memoryExpiration, setMemoryExpiration] = useState(false);
+  const [defaultExpirationDays, setDefaultExpirationDays] = useState(30);
   
-  // Caregiver Settings
+  // Family Privacy
+  const [familyPermissionTemplate, setFamilyPermissionTemplate] = useState<'full' | 'limited' | 'minimal'>('limited');
+  const [newMemberApproval, setNewMemberApproval] = useState<'automatic' | 'admin' | 'vote'>('admin');
+  const [familyAgreementAccepted, setFamilyAgreementAccepted] = useState(false);
+  
+  // Caregiver Privacy
   const [caregiverAccess, setCaregiverAccess] = useState(false);
-  const [caregiverEmail, setCaregiverEmail] = useState('');
-  const [caregiverPermissions, setCaregiverPermissions] = useState<string[]>(['view']);
+  const [caregiverPermissions, setCaregiverPermissions] = useState<string[]>(['view', 'comment']);
   const [emergencyAccess, setEmergencyAccess] = useState(false);
   
-  // Security Settings
+  // Security
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
-  const [passwordLastChanged, setPasswordLastChanged] = useState<Date | null>(null);
-  const [activeSessions, setActiveSessions] = useState<any[]>([]);
-  const [loginAlerts, setLoginAlerts] = useState(true);
+  const [loginNotifications, setLoginNotifications] = useState(true);
+  const [sessionTimeout, setSessionTimeout] = useState(30); // minutes
   
-  // Connected Apps
-  const [connectedApps, setConnectedApps] = useState<any[]>([
-    { 
-      id: 'google-photos', 
-      name: 'Google Photos', 
-      icon: '📷', 
-      connectedOn: '2024-06-15', 
-      permissions: ['Read photos', 'Upload photos'],
-      lastAccess: '2024-07-01'
-    },
-    { 
-      id: 'facebook', 
-      name: 'Facebook', 
-      icon: '👤', 
-      connectedOn: '2024-05-20', 
-      permissions: ['Share memories'],
-      lastAccess: '2024-06-25'
-    }
+  // Connected Services
+  const [connectedServices, setConnectedServices] = useState([
+    { id: 'google', name: 'Google Photos', connected: true, lastSync: '2024-12-01' },
+    { id: 'facebook', name: 'Facebook', connected: false, lastSync: null },
+    { id: 'apple', name: 'iCloud', connected: true, lastSync: '2024-12-10' }
   ]);
   
-  // Privacy Score
-  const [privacyScore, setPrivacyScore] = useState(0);
+  // Compliance
+  const [gdprConsent, setGdprConsent] = useState(true);
+  const [ccpaConsent, setCcpaConsent] = useState(true);
+  const [marketingConsent, setMarketingConsent] = useState(false);
+  const [analyticsConsent, setAnalyticsConsent] = useState(true);
   
-  // Fetch user data and settings
-  useEffect(() => {
-    // Calculate privacy score based on settings
-    calculatePrivacyScore();
-    
-    // Simulate fetching user data
-    setPasswordLastChanged(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)); // 30 days ago
-    
-    // Simulate fetching active sessions
-    setActiveSessions([
-      { id: 'session1', device: 'iPhone 13', location: 'New York, USA', lastActive: new Date(), current: true },
-      { id: 'session2', device: 'Chrome on Windows', location: 'New York, USA', lastActive: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) }
-    ]);
-  }, []);
-  
-  // Calculate privacy score based on settings
-  const calculatePrivacyScore = () => {
-    let score = 0;
-    
-    // Default visibility
-    if (defaultVisibility === 'private') score += 20;
-    else if (defaultVisibility === 'family') score += 15;
-    else score += 5;
-    
-    // Security features
-    if (twoFactorEnabled) score += 20;
-    if (loginAlerts) score += 10;
-    
-    // Data collection
-    if (!locationTagging) score += 10;
-    if (!faceRecognition) score += 10;
-    if (!aiTagging) score += 10;
-    if (!searchIndexing) score += 10;
-    if (!shareWithThirdParties) score += 10;
-    
-    // Retention
-    if (retentionPeriod === '1year') score += 10;
-    else if (retentionPeriod === '5years') score += 5;
-    
-    // Cap at 100
-    score = Math.min(score, 100);
-    setPrivacyScore(score);
+  const handleDisconnectService = (serviceId: string) => {
+    setConnectedServices(prev => 
+      prev.map(service => 
+        service.id === serviceId 
+          ? { ...service, connected: false, lastSync: null } 
+          : service
+      )
+    );
   };
   
-  // Update settings when they change
-  useEffect(() => {
-    calculatePrivacyScore();
-  }, [
-    defaultVisibility, twoFactorEnabled, loginAlerts, locationTagging,
-    faceRecognition, aiTagging, searchIndexing, shareWithThirdParties,
-    retentionPeriod
-  ]);
+  const handleDeleteAllData = () => {
+    setShowDeleteConfirm(true);
+  };
   
-  const handleSaveSettings = async () => {
-    setIsSaving(true);
+  const confirmDeleteAllData = () => {
+    // In a real app, this would delete all user data
+    console.log('Deleting all user data...');
+    setShowDeleteConfirm(false);
     
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Show success message
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 3000);
-    } catch (error) {
-      console.error('Error saving settings:', error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  const handleExportData = async () => {
-    setIsExporting(true);
-    setExportProgress(0);
-    
-    try {
-      // Simulate export process
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setExportProgress(i);
-      }
-      
-      // Simulate download
-      const link = document.createElement('a');
-      link.href = '#';
-      link.download = 'memorymesh-data-export.zip';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-    } catch (error) {
-      console.error('Error exporting data:', error);
-    } finally {
-      setIsExporting(false);
-      setExportProgress(0);
-    }
-  };
-  
-  const handleDeleteAccount = async () => {
-    try {
-      // In a real app, this would delete the user's account
-      console.log('Deleting account...');
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Sign out after deletion
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error deleting account:', error);
-    }
-  };
-  
-  const handleDeactivateAccount = async () => {
-    try {
-      // In a real app, this would deactivate the user's account
-      console.log('Deactivating account...');
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Show success message
-      alert('Your account has been deactivated. You can reactivate it by logging in again within 30 days.');
-      
-      // Sign out after deactivation
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error('Error deactivating account:', error);
-    }
-  };
-  
-  const handleRevokeApp = async (appId: string) => {
-    try {
-      // In a real app, this would revoke access for the specified app
-      console.log('Revoking access for app:', appId);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Remove app from list
-      setConnectedApps(prev => prev.filter(app => app.id !== appId));
-    } catch (error) {
-      console.error('Error revoking app access:', error);
-    }
-  };
-  
-  const handleRevokeSession = async (sessionId: string) => {
-    try {
-      // In a real app, this would revoke the specified session
-      console.log('Revoking session:', sessionId);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Remove session from list
-      setActiveSessions(prev => prev.filter(session => session.id !== sessionId));
-    } catch (error) {
-      console.error('Error revoking session:', error);
-    }
-  };
-  
-  const getPrivacyScoreColor = () => {
-    if (privacyScore >= 80) return 'text-green-600';
-    if (privacyScore >= 60) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-  
-  const getPrivacyScoreBackground = () => {
-    if (privacyScore >= 80) return 'bg-green-100';
-    if (privacyScore >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
-  };
-  
-  const getPrivacyScoreText = () => {
-    if (privacyScore >= 80) return 'Strong';
-    if (privacyScore >= 60) return 'Good';
-    if (privacyScore >= 40) return 'Fair';
-    return 'Weak';
+    // Show confirmation
+    alert('All your data has been scheduled for deletion. This process may take up to 30 days to complete.');
   };
   
   const privacySections = [
     {
-      id: 'dashboard',
-      title: 'Privacy Dashboard',
+      id: 'overview',
+      title: 'Privacy Overview',
       icon: Shield,
-      description: 'Overview of your privacy settings and data'
+      description: 'Your privacy at a glance'
     },
     {
       id: 'memory-privacy',
-      title: 'Memory Privacy',
+      title: 'Memory-Level Privacy',
       icon: Eye,
       description: 'Control who can see your memories'
     },
@@ -281,260 +108,209 @@ export function PrivacyControlsPage() {
       description: 'Family-wide privacy settings'
     },
     {
-      id: 'third-party',
+      id: 'integrations',
       title: 'Third-Party Integrations',
-      icon: Globe,
-      description: 'Manage connected apps and services'
+      icon: ExternalLink,
+      description: 'Manage connected services'
     },
     {
       id: 'compliance',
-      title: 'Privacy Compliance',
-      icon: FileText,
-      description: 'Data rights and legal compliance'
+      title: 'Compliance & Consent',
+      icon: Check,
+      description: 'Legal compliance settings'
     },
     {
       id: 'caregiver',
       title: 'Caregiver Privacy',
-      icon: Users,
-      description: 'Manage caregiver access'
+      icon: HelpCircle,
+      description: 'Healthcare provider access'
     },
     {
       id: 'security',
-      title: 'Security Settings',
+      title: 'Security Features',
       icon: Lock,
       description: 'Protect your account'
     }
   ];
   
-  const renderPrivacyDashboard = () => (
+  const renderPrivacyOverview = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Privacy Dashboard</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Privacy Overview</h2>
       
       {/* Privacy Score */}
       <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Privacy Score</h3>
-          <div className={`${getPrivacyScoreBackground()} px-3 py-1 rounded-full`}>
-            <span className={`font-semibold ${getPrivacyScoreColor()}`}>
-              {getPrivacyScoreText()}
-            </span>
+          <h3 className="text-lg font-semibold text-gray-900">Your Privacy Score</h3>
+          <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+            Good
           </div>
         </div>
         
         <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-600">Your Score</span>
-            <span className={`font-bold text-lg ${getPrivacyScoreColor()}`}>{privacyScore}/100</span>
+          <div className="flex justify-between items-center mb-1">
+            <span className="text-sm font-medium text-gray-700">85/100</span>
+            <span className="text-xs text-gray-500">Last updated: Today</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div 
-              className={`h-2.5 rounded-full ${
-                privacyScore >= 80 ? 'bg-green-600' : 
-                privacyScore >= 60 ? 'bg-yellow-600' : 'bg-red-600'
-              }`}
-              style={{ width: `${privacyScore}%` }}
-            />
+            <div className="bg-green-600 h-2.5 rounded-full" style={{ width: '85%' }}></div>
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gray-50 rounded-lg p-3">
-            <h4 className="font-medium text-gray-900 mb-1">Improve Your Score</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              {!twoFactorEnabled && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  <span>Enable two-factor authentication</span>
-                </li>
-              )}
-              {defaultVisibility === 'public' && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  <span>Change default visibility to Family or Private</span>
-                </li>
-              )}
-              {shareWithThirdParties && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                  <span>Disable third-party data sharing</span>
-                </li>
-              )}
-              {retentionPeriod === 'forever' && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></span>
-                  <span>Set a data retention period</span>
-                </li>
-              )}
-            </ul>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+          <div>
+            <div className="text-lg font-bold text-gray-900">Strong</div>
+            <div className="text-sm text-gray-600">Account Security</div>
           </div>
-          
-          <div className="bg-gray-50 rounded-lg p-3">
-            <h4 className="font-medium text-gray-900 mb-1">Privacy Strengths</h4>
-            <ul className="text-sm text-gray-600 space-y-1">
-              {twoFactorEnabled && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  <span>Two-factor authentication enabled</span>
-                </li>
-              )}
-              {defaultVisibility === 'private' && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  <span>Private default visibility</span>
-                </li>
-              )}
-              {!shareWithThirdParties && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  <span>No third-party data sharing</span>
-                </li>
-              )}
-              {loginAlerts && (
-                <li className="flex items-center space-x-2">
-                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                  <span>Login alerts enabled</span>
-                </li>
-              )}
-            </ul>
+          <div>
+            <div className="text-lg font-bold text-gray-900">Good</div>
+            <div className="text-sm text-gray-600">Data Controls</div>
           </div>
-        </div>
-      </div>
-      
-      {/* Privacy Summary */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Privacy Summary</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Eye className="w-5 h-5 text-gray-600" />
-              <div>
-                <p className="font-medium text-gray-900">Default Memory Visibility</p>
-                <p className="text-sm text-gray-600">Who can see your memories by default</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700">
-              {defaultVisibility.charAt(0).toUpperCase() + defaultVisibility.slice(1)}
-            </span>
+          <div>
+            <div className="text-lg font-bold text-yellow-600">Needs Attention</div>
+            <div className="text-sm text-gray-600">Third-Party Access</div>
           </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Users className="w-5 h-5 text-gray-600" />
-              <div>
-                <p className="font-medium text-gray-900">Family Members</p>
-                <p className="text-sm text-gray-600">People with access to your memories</p>
-              </div>
-            </div>
-            <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-700">
-              5 Members
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Database className="w-5 h-5 text-gray-600" />
-              <div>
-                <p className="font-medium text-gray-900">Data Collection</p>
-                <p className="text-sm text-gray-600">AI and automatic data processing</p>
-              </div>
-            </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              aiTagging && faceRecognition && locationTagging
-                ? 'bg-yellow-100 text-yellow-700'
-                : 'bg-green-100 text-green-700'
-            }`}>
-              {aiTagging && faceRecognition && locationTagging
-                ? 'Enhanced'
-                : 'Limited'}
-            </span>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Lock className="w-5 h-5 text-gray-600" />
-              <div>
-                <p className="font-medium text-gray-900">Account Security</p>
-                <p className="text-sm text-gray-600">Protection level for your account</p>
-              </div>
-            </div>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              twoFactorEnabled
-                ? 'bg-green-100 text-green-700'
-                : 'bg-red-100 text-red-700'
-            }`}>
-              {twoFactorEnabled ? 'Strong' : 'Basic'}
-            </span>
-          </div>
-        </div>
-      </div>
-      
-      {/* Recent Privacy Activity */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Privacy Activity</h3>
-        
-        <div className="space-y-3">
-          {[
-            { action: 'Changed default visibility to Family', date: '2024-07-01', icon: Eye },
-            { action: 'Downloaded data archive', date: '2024-06-15', icon: Download },
-            { action: 'Updated password', date: '2024-06-01', icon: Lock },
-            { action: 'Revoked access for Facebook app', date: '2024-05-20', icon: Globe }
-          ].map((activity, index) => (
-            <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-              <div className="bg-gray-200 p-2 rounded-full">
-                <activity.icon className="w-4 h-4 text-gray-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-medium text-gray-900">{activity.action}</p>
-                <p className="text-xs text-gray-500">{activity.date}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
       
       {/* Quick Privacy Actions */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Privacy Actions</h3>
-        
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <TouchOptimized>
             <button
               onClick={() => setActiveSection('data-controls')}
-              className="flex items-center space-x-3 p-4 bg-sage-50 rounded-xl border border-sage-200 hover:bg-sage-100 transition-colors"
+              className="flex items-center justify-between p-4 bg-sage-50 rounded-xl border border-sage-200 hover:bg-sage-100 transition-colors"
             >
-              <Download className="w-5 h-5 text-sage-700" />
-              <span className="font-medium text-sage-800">Export Your Data</span>
+              <div className="flex items-center space-x-3">
+                <Download className="w-5 h-5 text-sage-700" />
+                <span className="font-medium text-gray-900">Download Your Data</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
+            </button>
+          </TouchOptimized>
+          
+          <TouchOptimized>
+            <button
+              onClick={() => setActiveSection('memory-privacy')}
+              className="flex items-center justify-between p-4 bg-sage-50 rounded-xl border border-sage-200 hover:bg-sage-100 transition-colors"
+            >
+              <div className="flex items-center space-x-3">
+                <Eye className="w-5 h-5 text-sage-700" />
+                <span className="font-medium text-gray-900">Privacy Checkup</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </TouchOptimized>
           
           <TouchOptimized>
             <button
               onClick={() => setActiveSection('security')}
-              className="flex items-center space-x-3 p-4 bg-blue-50 rounded-xl border border-blue-200 hover:bg-blue-100 transition-colors"
+              className="flex items-center justify-between p-4 bg-sage-50 rounded-xl border border-sage-200 hover:bg-sage-100 transition-colors"
             >
-              <Lock className="w-5 h-5 text-blue-700" />
-              <span className="font-medium text-blue-800">Security Checkup</span>
+              <div className="flex items-center space-x-3">
+                <Lock className="w-5 h-5 text-sage-700" />
+                <span className="font-medium text-gray-900">Security Checkup</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </TouchOptimized>
           
           <TouchOptimized>
             <button
-              onClick={() => setDefaultVisibility('private')}
-              className="flex items-center space-x-3 p-4 bg-purple-50 rounded-xl border border-purple-200 hover:bg-purple-100 transition-colors"
+              onClick={() => setActiveSection('integrations')}
+              className="flex items-center justify-between p-4 bg-sage-50 rounded-xl border border-sage-200 hover:bg-sage-100 transition-colors"
             >
-              <EyeOff className="w-5 h-5 text-purple-700" />
-              <span className="font-medium text-purple-800">Make All Private</span>
+              <div className="flex items-center space-x-3">
+                <ExternalLink className="w-5 h-5 text-sage-700" />
+                <span className="font-medium text-gray-900">Manage Connected Apps</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400" />
             </button>
           </TouchOptimized>
+        </div>
+      </div>
+      
+      {/* Recent Privacy Activity */}
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">Recent Privacy Activity</h3>
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 divide-y divide-gray-100">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <Lock className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Password Changed</p>
+                  <p className="text-xs text-gray-500">2 days ago</p>
+                </div>
+              </div>
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700">
+                  Details
+                </button>
+              </TouchOptimized>
+            </div>
+          </div>
           
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <Download className="w-4 h-4 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Data Export Completed</p>
+                  <p className="text-xs text-gray-500">1 week ago</p>
+                </div>
+              </div>
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700">
+                  Details
+                </button>
+              </TouchOptimized>
+            </div>
+          </div>
+          
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <Users className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Family Privacy Updated</p>
+                  <p className="text-xs text-gray-500">2 weeks ago</p>
+                </div>
+              </div>
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700">
+                  Details
+                </button>
+              </TouchOptimized>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Privacy Audit Log */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-semibold text-gray-900">Privacy Audit Log</h3>
           <TouchOptimized>
-            <button
-              onClick={() => setActiveSection('third-party')}
-              className="flex items-center space-x-3 p-4 bg-orange-50 rounded-xl border border-orange-200 hover:bg-orange-100 transition-colors"
-            >
-              <Globe className="w-5 h-5 text-orange-700" />
-              <span className="font-medium text-orange-800">Manage Connected Apps</span>
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium">
+              View All
+            </button>
+          </TouchOptimized>
+        </div>
+        
+        <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+          <p className="text-sm text-gray-600 mb-2">
+            Track all privacy-related changes to your account
+          </p>
+          <TouchOptimized>
+            <button className="text-sage-600 hover:text-sage-700 font-medium text-sm">
+              Download Audit Log
             </button>
           </TouchOptimized>
         </div>
@@ -544,299 +320,238 @@ export function PrivacyControlsPage() {
   
   const renderMemoryPrivacy = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Memory Privacy</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Memory-Level Privacy</h2>
       
-      {/* Default Visibility */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Default Memory Visibility</h3>
-        
+      {/* Default Memory Visibility */}
+      <div>
+        <label className="block text-lg font-medium text-gray-700 mb-3">
+          Default Memory Visibility
+        </label>
         <div className="space-y-3">
           <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-red-100 p-2 rounded-full">
-                  <EyeOff className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Private</p>
-                  <p className="text-sm text-gray-600">Only you can see these memories</p>
-                </div>
-              </div>
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-sage-300 cursor-pointer">
               <input
                 type="radio"
                 name="visibility"
                 checked={defaultVisibility === 'private'}
                 onChange={() => setDefaultVisibility('private')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
+                className="w-4 h-4 text-sage-600 focus:ring-sage-500"
               />
+              <div>
+                <span className="font-medium text-gray-900">Private</span>
+                <p className="text-sm text-gray-600">Only you can see these memories</p>
+              </div>
             </label>
           </TouchOptimized>
           
           <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Users className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Family Only</p>
-                  <p className="text-sm text-gray-600">Only your family members can see these memories</p>
-                </div>
-              </div>
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-sage-300 cursor-pointer">
               <input
                 type="radio"
                 name="visibility"
                 checked={defaultVisibility === 'family'}
                 onChange={() => setDefaultVisibility('family')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
+                className="w-4 h-4 text-sage-600 focus:ring-sage-500"
               />
+              <div>
+                <span className="font-medium text-gray-900">Family Only</span>
+                <p className="text-sm text-gray-600">Only your family members can see these memories</p>
+              </div>
             </label>
           </TouchOptimized>
           
           <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <Globe className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Public</p>
-                  <p className="text-sm text-gray-600">Anyone with the link can see these memories</p>
-                </div>
-              </div>
+            <label className="flex items-center space-x-3 p-3 bg-white rounded-xl border border-gray-200 hover:border-sage-300 cursor-pointer">
               <input
                 type="radio"
                 name="visibility"
                 checked={defaultVisibility === 'public'}
                 onChange={() => setDefaultVisibility('public')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
+                className="w-4 h-4 text-sage-600 focus:ring-sage-500"
               />
+              <div>
+                <span className="font-medium text-gray-900">Public</span>
+                <p className="text-sm text-gray-600">Anyone with the link can see these memories</p>
+              </div>
             </label>
           </TouchOptimized>
         </div>
-        
-        <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-yellow-700">
-              This setting only affects new memories you upload. You can always change the visibility of individual memories later.
-            </p>
-          </div>
-        </div>
       </div>
       
-      {/* Memory Collections */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory Collections</h3>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 p-2 rounded-full">
-                <Calendar className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Family Vacation 2024</p>
-                <p className="text-sm text-gray-600">42 memories</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button className="text-sage-600 hover:text-sage-700 font-medium text-sm">
-                Manage Privacy
-              </button>
-            </TouchOptimized>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-purple-100 p-2 rounded-full">
-                <Calendar className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Christmas 2023</p>
-                <p className="text-sm text-gray-600">28 memories</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button className="text-sage-600 hover:text-sage-700 font-medium text-sm">
-                Manage Privacy
-              </button>
-            </TouchOptimized>
-          </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-green-100 p-2 rounded-full">
-                <Calendar className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Grandma's 80th Birthday</p>
-                <p className="text-sm text-gray-600">15 memories</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button className="text-sage-600 hover:text-sage-700 font-medium text-sm">
-                Manage Privacy
-              </button>
-            </TouchOptimized>
-          </div>
-        </div>
-        
-        <div className="mt-4 text-center">
+      {/* Granular Permissions */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Granular Family Permissions</h3>
           <TouchOptimized>
-            <Link
-              to="/collections"
-              className="text-sage-600 hover:text-sage-700 font-medium"
-            >
-              View All Collections
-            </Link>
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium">
+              Edit
+            </button>
           </TouchOptimized>
         </div>
+        
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="grid grid-cols-5 gap-2">
+              <div className="col-span-2 font-medium text-gray-700">Family Member</div>
+              <div className="text-center font-medium text-gray-700">View</div>
+              <div className="text-center font-medium text-gray-700">Comment</div>
+              <div className="text-center font-medium text-gray-700">Download</div>
+            </div>
+          </div>
+          
+          <div className="divide-y divide-gray-100">
+            {[
+              { name: 'Mom', view: true, comment: true, download: true },
+              { name: 'Dad', view: true, comment: true, download: true },
+              { name: 'Grandma', view: true, comment: true, download: false },
+              { name: 'Uncle John', view: true, comment: false, download: false }
+            ].map((member, index) => (
+              <div key={index} className="p-4">
+                <div className="grid grid-cols-5 gap-2 items-center">
+                  <div className="col-span-2 flex items-center space-x-2">
+                    <div className="w-8 h-8 bg-sage-100 rounded-full flex items-center justify-center">
+                      <User className="w-4 h-4 text-sage-600" />
+                    </div>
+                    <span className="font-medium text-gray-900">{member.name}</span>
+                  </div>
+                  <div className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={member.view}
+                      readOnly
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={member.comment}
+                      readOnly
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <input
+                      type="checkbox"
+                      checked={member.download}
+                      readOnly
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
       
-      {/* Temporary Sharing */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Temporary Sharing Links</h3>
+      {/* Private Collections */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Private Memory Collections</h3>
           <TouchOptimized>
-            <button className="text-sage-600 hover:text-sage-700 font-medium text-sm">
-              Create New Link
+            <button className="flex items-center space-x-1 text-sm text-sage-600 hover:text-sage-700 font-medium">
+              <Plus size={16} />
+              <span>Create New</span>
             </button>
           </TouchOptimized>
         </div>
         
         <div className="space-y-3">
-          <div className="p-3 bg-gray-50 rounded-lg">
+          <div className="p-4 bg-white rounded-xl border border-gray-200 hover:border-sage-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-medium text-gray-900">Grandma's Birthday Photos</p>
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs">
-                Expires in 5 days
+              <h4 className="font-medium text-gray-900">Personal Memories</h4>
+              <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+                12 items
               </span>
             </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Private collection only visible to you
+            </p>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600 truncate max-w-xs">
-                https://memorymesh.app/share/abc123
-              </p>
-              <div className="flex items-center space-x-2">
-                <TouchOptimized>
-                  <button className="p-1 text-gray-500 hover:text-gray-700">
-                    <RefreshCw size={16} />
-                  </button>
-                </TouchOptimized>
-                <TouchOptimized>
-                  <button className="p-1 text-gray-500 hover:text-gray-700">
-                    <Trash2 size={16} />
-                  </button>
-                </TouchOptimized>
-              </div>
+              <span className="text-xs text-gray-500">Created 3 months ago</span>
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700">
+                  Manage
+                </button>
+              </TouchOptimized>
             </div>
           </div>
           
-          <div className="p-3 bg-gray-50 rounded-lg">
+          <div className="p-4 bg-white rounded-xl border border-gray-200 hover:border-sage-300 transition-colors">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-medium text-gray-900">Family Vacation Video</p>
-              <span className="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
-                Expired
+              <h4 className="font-medium text-gray-900">Medical Records</h4>
+              <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs">
+                5 items
               </span>
             </div>
+            <p className="text-sm text-gray-600 mb-3">
+              Shared with healthcare providers only
+            </p>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600 truncate max-w-xs">
-                https://memorymesh.app/share/def456
-              </p>
-              <div className="flex items-center space-x-2">
-                <TouchOptimized>
-                  <button className="p-1 text-gray-500 hover:text-gray-700">
-                    <RefreshCw size={16} />
-                  </button>
-                </TouchOptimized>
-                <TouchOptimized>
-                  <button className="p-1 text-gray-500 hover:text-gray-700">
-                    <Trash2 size={16} />
-                  </button>
-                </TouchOptimized>
-              </div>
+              <span className="text-xs text-gray-500">Created 1 month ago</span>
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700">
+                  Manage
+                </button>
+              </TouchOptimized>
             </div>
           </div>
         </div>
       </div>
       
-      {/* Memory Expiration */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Memory Expiration</h3>
-        
-        <div className="space-y-3">
+      {/* Temporary Sharing */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Temporary Sharing Links</h3>
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-3">
+            Create temporary links to share memories with people outside your family
+          </p>
           <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <Clock className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Keep Forever</p>
-                  <p className="text-sm text-gray-600">Never automatically delete memories</p>
-                </div>
-              </div>
-              <input
-                type="radio"
-                name="retention"
-                checked={retentionPeriod === 'forever'}
-                onChange={() => setRetentionPeriod('forever')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Clock className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">5 Year Retention</p>
-                  <p className="text-sm text-gray-600">Delete memories after 5 years</p>
-                </div>
-              </div>
-              <input
-                type="radio"
-                name="retention"
-                checked={retentionPeriod === '5years'}
-                onChange={() => setRetentionPeriod('5years')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-full">
-                  <Clock className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">1 Year Retention</p>
-                  <p className="text-sm text-gray-600">Delete memories after 1 year</p>
-                </div>
-              </div>
-              <input
-                type="radio"
-                name="retention"
-                checked={retentionPeriod === '1year'}
-                onChange={() => setRetentionPeriod('1year')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
+            <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+              <Plus size={16} />
+              <span>Create Sharing Link</span>
+            </button>
           </TouchOptimized>
         </div>
+      </div>
+      
+      {/* Memory Expiration */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Memory Expiration</h3>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={memoryExpiration}
+              onChange={() => setMemoryExpiration(!memoryExpiration)}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+          </label>
+        </div>
         
-        <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-yellow-700">
-              Setting an expiration period will permanently delete memories older than the specified time. This action cannot be undone.
+        {memoryExpiration && (
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-600 mb-3">
+              Set a default expiration period for new memories
+            </p>
+            <div className="flex items-center space-x-3">
+              <input
+                type="number"
+                min="1"
+                max="365"
+                value={defaultExpirationDays}
+                onChange={(e) => setDefaultExpirationDays(parseInt(e.target.value))}
+                className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+              />
+              <span className="text-gray-700">days after upload</span>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              After this period, memories will be automatically archived and only visible to you
             </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
@@ -845,227 +560,286 @@ export function PrivacyControlsPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Data Controls</h2>
       
-      {/* Data Export */}
+      {/* Data Overview */}
       <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Your Data</h3>
+        <h3 className="font-semibold text-gray-900 mb-4">Your Data Overview</h3>
         
-        <p className="text-gray-600 mb-4">
-          Download a copy of all your data from MemoryMesh, including memories, comments, and account information.
-        </p>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-100 p-2 rounded-full">
-                <Download className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Complete Data Archive</p>
-                <p className="text-sm text-gray-600">All your memories, comments, and account data</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button
-                onClick={handleExportData}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isExporting ? 'Exporting...' : 'Export'}
-              </button>
-            </TouchOptimized>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-gray-900">247</div>
+            <div className="text-sm text-gray-600">Total Memories</div>
           </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-purple-100 p-2 rounded-full">
-                <Download className="w-5 h-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Memories Only</p>
-                <p className="text-sm text-gray-600">Just your photos, videos, and stories</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button
-                onClick={handleExportData}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50 transition-colors"
-              >
-                {isExporting ? 'Exporting...' : 'Export'}
-              </button>
-            </TouchOptimized>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-gray-900">1.2 GB</div>
+            <div className="text-sm text-gray-600">Storage Used</div>
           </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="bg-green-100 p-2 rounded-full">
-                <Download className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Account Data</p>
-                <p className="text-sm text-gray-600">Your profile, settings, and activity</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button
-                onClick={handleExportData}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors"
-              >
-                {isExporting ? 'Exporting...' : 'Export'}
-              </button>
-            </TouchOptimized>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-gray-900">83</div>
+            <div className="text-sm text-gray-600">Comments</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-xl font-bold text-gray-900">5</div>
+            <div className="text-sm text-gray-600">Connected Apps</div>
           </div>
         </div>
         
-        {isExporting && (
-          <div className="mt-4">
-            <div className="flex justify-between text-sm mb-1">
-              <span>Preparing export...</span>
-              <span>{exportProgress}%</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${exportProgress}%` }}
+        <div className="flex justify-between items-center">
+          <span className="text-sm text-gray-600">Last updated: Today at 10:45 AM</span>
+          <TouchOptimized>
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium">
+              Refresh
+            </button>
+          </TouchOptimized>
+        </div>
+      </div>
+      
+      {/* Data Export */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Export Your Data</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Download a copy of all your data in a machine-readable format
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-memories"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
               />
+              <label htmlFor="export-memories" className="text-sm text-gray-700">
+                Memories (photos, videos, audio, stories)
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-comments"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="export-comments" className="text-sm text-gray-700">
+                Comments & interactions
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-profile"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="export-profile" className="text-sm text-gray-700">
+                Profile information
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="checkbox"
+                id="export-activity"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="export-activity" className="text-sm text-gray-700">
+                Activity history
+              </label>
             </div>
           </div>
-        )}
-        
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-blue-700">
-              <p className="mb-1">Your data will be exported as a ZIP file containing:</p>
-              <ul className="list-disc pl-5 space-y-1">
-                <li>Photos and videos in their original quality</li>
-                <li>Text memories in HTML and plain text formats</li>
-                <li>Comments and interactions in JSON format</li>
-                <li>Account information and settings</li>
-              </ul>
-            </div>
+          
+          <div className="mt-4">
+            <TouchOptimized>
+              <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+                <Download size={16} />
+                <span>Request Data Export</span>
+              </button>
+            </TouchOptimized>
+            <p className="text-xs text-gray-500 mt-2">
+              Export will be prepared and emailed to you within 48 hours
+            </p>
           </div>
         </div>
       </div>
       
       {/* Selective Deletion */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Selective Data Deletion</h3>
-        
-        <p className="text-gray-600 mb-4">
-          Delete specific types of data from your account. This action cannot be undone.
-        </p>
-        
-        <div className="space-y-3">
-          <TouchOptimized>
-            <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left">
-              <div className="flex items-center space-x-3">
-                <div className="bg-red-100 p-2 rounded-full">
-                  <Trash2 className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Delete All Photos</p>
-                  <p className="text-sm text-gray-600">Remove all uploaded photos</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-          </TouchOptimized>
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Selective Data Deletion</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Delete specific types of data from your account
+          </p>
           
-          <TouchOptimized>
-            <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left">
-              <div className="flex items-center space-x-3">
-                <div className="bg-red-100 p-2 rounded-full">
-                  <Trash2 className="w-5 h-5 text-red-600" />
+          <div className="space-y-3">
+            <TouchOptimized>
+              <Link
+                to="/search?filter=deletable"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <Calendar className="w-5 h-5 text-gray-500" />
+                  <span className="text-gray-700">Delete by date range</span>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">Delete All Videos</p>
-                  <p className="text-sm text-gray-600">Remove all uploaded videos</p>
+                <ChevronRight size={18} className="text-gray-400" />
+              </Link>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <Link
+                to="/search?filter=deletable&type=location"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <MapPin className="w-5 h-5 text-gray-500" />
+                  <span className="text-gray-700">Delete by location</span>
                 </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left">
-              <div className="flex items-center space-x-3">
-                <div className="bg-red-100 p-2 rounded-full">
-                  <Trash2 className="w-5 h-5 text-red-600" />
+                <ChevronRight size={18} className="text-gray-400" />
+              </Link>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <Link
+                to="/search?filter=deletable&type=person"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <User className="w-5 h-5 text-gray-500" />
+                  <span className="text-gray-700">Delete by person</span>
                 </div>
-                <div>
-                  <p className="font-medium text-gray-900">Delete All Comments</p>
-                  <p className="text-sm text-gray-600">Remove all your comments</p>
+                <ChevronRight size={18} className="text-gray-400" />
+              </Link>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <Link
+                to="/search?filter=deletable&type=comments"
+                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                <div className="flex items-center space-x-3">
+                  <MessageCircle className="w-5 h-5 text-gray-500" />
+                  <span className="text-gray-700">Delete comments & reactions</span>
                 </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <button className="flex items-center justify-between w-full p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left">
-              <div className="flex items-center space-x-3">
-                <div className="bg-red-100 p-2 rounded-full">
-                  <Trash2 className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Delete Activity History</p>
-                  <p className="text-sm text-gray-600">Remove your activity and interaction data</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </button>
-          </TouchOptimized>
-        </div>
-        
-        <div className="mt-6 p-3 bg-red-50 rounded-lg border border-red-200">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-red-700 mb-1">Permanent Deletion</p>
-              <p className="text-sm text-red-600">
-                Deleted data cannot be recovered. Make sure to export any data you want to keep before deleting.
-              </p>
-            </div>
+                <ChevronRight size={18} className="text-gray-400" />
+              </Link>
+            </TouchOptimized>
           </div>
         </div>
       </div>
       
-      {/* Account Actions */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Actions</h3>
-        
-        <div className="space-y-4">
-          <div className="p-4 border border-gray-200 rounded-lg">
-            <h4 className="font-medium text-gray-900 mb-2">Deactivate Account</h4>
-            <p className="text-sm text-gray-600 mb-3">
-              Temporarily disable your account. You can reactivate it by logging in within 30 days.
-            </p>
+      {/* Data Retention */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Data Retention</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Choose how long we keep your data
+          </p>
+          
+          <div className="space-y-3">
             <TouchOptimized>
-              <button
-                onClick={() => setShowDeactivateConfirm(true)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Deactivate Account
-              </button>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="retention"
+                  checked={dataRetention === 'forever'}
+                  onChange={() => setDataRetention('forever')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Keep forever</span>
+                  <p className="text-xs text-gray-600">Your data will be stored indefinitely</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="retention"
+                  checked={dataRetention === '5years'}
+                  onChange={() => setDataRetention('5years')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Keep for 5 years</span>
+                  <p className="text-xs text-gray-600">Data older than 5 years will be automatically deleted</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="retention"
+                  checked={dataRetention === '1year'}
+                  onChange={() => setDataRetention('1year')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Keep for 1 year</span>
+                  <p className="text-xs text-gray-600">Data older than 1 year will be automatically deleted</p>
+                </div>
+              </label>
             </TouchOptimized>
           </div>
           
-          <div className="p-4 border border-red-200 rounded-lg bg-red-50">
-            <h4 className="font-medium text-red-700 mb-2">Delete Account</h4>
-            <p className="text-sm text-red-600 mb-3">
-              Permanently delete your account and all associated data. This action cannot be undone.
-            </p>
-            <TouchOptimized>
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete Account
-              </button>
-            </TouchOptimized>
+          <p className="text-xs text-gray-500 mt-3">
+            Note: Changing this setting will not affect data that has already been shared with family members
+          </p>
+        </div>
+      </div>
+      
+      {/* Account Deactivation */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Account Deactivation</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Temporarily deactivate your account
+          </p>
+          
+          <TouchOptimized>
+            <button className="flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors">
+              <Smartphone size={16} />
+              <span>Deactivate Account</span>
+            </button>
+          </TouchOptimized>
+          <p className="text-xs text-gray-500 mt-2">
+            Your account will be hidden from other family members but not deleted
+          </p>
+        </div>
+      </div>
+      
+      {/* Complete Account Deletion */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Delete All Data</h3>
+        <div className="bg-red-50 rounded-xl border border-red-200 p-4">
+          <div className="flex items-start space-x-3 mb-4">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-red-800">Danger Zone</p>
+              <p className="text-sm text-red-700">
+                This will permanently delete all your data and cannot be undone
+              </p>
+            </div>
           </div>
+          
+          <TouchOptimized>
+            <button
+              onClick={handleDeleteAllData}
+              className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
+            >
+              <Trash2 size={16} />
+              <span>Delete All My Data</span>
+            </button>
+          </TouchOptimized>
         </div>
       </div>
     </div>
@@ -1075,451 +849,409 @@ export function PrivacyControlsPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Family Privacy</h2>
       
-      {/* Family Permissions */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Default Family Permissions</h3>
-        
-        <div className="space-y-3">
-          <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <Eye className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">View Only</p>
-                  <p className="text-sm text-gray-600">Family members can only view memories</p>
-                </div>
-              </div>
-              <input
-                type="radio"
-                name="familyPermissions"
-                checked={familyDefaultPermissions === 'view'}
-                onChange={() => setFamilyDefaultPermissions('view')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
-          </TouchOptimized>
+      {/* Family-wide Privacy Defaults */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Family-wide Privacy Defaults</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Set default privacy settings for all family members
+          </p>
           
-          <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <MessageCircle className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Comment & Like</p>
-                  <p className="text-sm text-gray-600">Family members can view, comment, and like memories</p>
-                </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Default Memory Visibility
+              </label>
+              <select
+                value={defaultVisibility}
+                onChange={(e) => setDefaultVisibility(e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+              >
+                <option value="private">Private (creator only)</option>
+                <option value="family">Family Only</option>
+                <option value="public">Public (anyone with link)</option>
+              </select>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Location Tagging
+                </label>
+                <p className="text-xs text-gray-500">
+                  Automatically add location data to memories
+                </p>
               </div>
-              <input
-                type="radio"
-                name="familyPermissions"
-                checked={familyDefaultPermissions === 'comment'}
-                onChange={() => setFamilyDefaultPermissions('comment')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <label className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer">
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-full">
-                  <Settings className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Full Edit Access</p>
-                  <p className="text-sm text-gray-600">Family members can view, comment, like, and edit memories</p>
-                </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={locationTagging}
+                  onChange={() => setLocationTagging(!locationTagging)}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+              </label>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Face Recognition
+                </label>
+                <p className="text-xs text-gray-500">
+                  Allow AI to recognize family members in photos
+                </p>
               </div>
-              <input
-                type="radio"
-                name="familyPermissions"
-                checked={familyDefaultPermissions === 'edit'}
-                onChange={() => setFamilyDefaultPermissions('edit')}
-                className="w-5 h-5 text-sage-600 focus:ring-sage-500"
-              />
-            </label>
-          </TouchOptimized>
-        </div>
-        
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-700">
-              These permissions apply to new family members by default. You can always set custom permissions for individual family members.
-            </p>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={faceRecognition}
+                  onChange={() => setFaceRecognition(!faceRecognition)}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+              </label>
+            </div>
           </div>
         </div>
       </div>
       
-      {/* Member Management */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Family Member Management</h3>
-          <TouchOptimized>
-            <button className="flex items-center space-x-1 text-sage-600 hover:text-sage-700 font-medium text-sm">
-              <UserPlus size={16} />
-              <span>Invite Member</span>
-            </button>
-          </TouchOptimized>
-        </div>
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-sage-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Mom</p>
-                <p className="text-xs text-gray-500">Family Admin • Joined 2 years ago</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button className="text-gray-600 hover:text-gray-800 font-medium text-sm">
-                Manage
-              </button>
-            </TouchOptimized>
-          </div>
+      {/* New Member Permission Templates */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">New Member Permission Templates</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Set default permissions for new family members
+          </p>
           
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-sage-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Dad</p>
-                <p className="text-xs text-gray-500">Family Admin • Joined 2 years ago</p>
-              </div>
-            </div>
+          <div className="space-y-3">
             <TouchOptimized>
-              <button className="text-gray-600 hover:text-gray-800 font-medium text-sm">
-                Manage
-              </button>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permissionTemplate"
+                  checked={familyPermissionTemplate === 'full'}
+                  onChange={() => setFamilyPermissionTemplate('full')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Full Access</span>
+                  <p className="text-xs text-gray-600">Can view, comment, download, and share all memories</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permissionTemplate"
+                  checked={familyPermissionTemplate === 'limited'}
+                  onChange={() => setFamilyPermissionTemplate('limited')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Limited Access</span>
+                  <p className="text-xs text-gray-600">Can view and comment, but not download or share</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="permissionTemplate"
+                  checked={familyPermissionTemplate === 'minimal'}
+                  onChange={() => setFamilyPermissionTemplate('minimal')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Minimal Access</span>
+                  <p className="text-xs text-gray-600">Can only view memories, no comments or downloads</p>
+                </div>
+              </label>
             </TouchOptimized>
           </div>
-          
-          <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-sage-100 rounded-full flex items-center justify-center">
-                <User className="w-5 h-5 text-sage-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">Grandma</p>
-                <p className="text-xs text-gray-500">Member • Joined 1 year ago</p>
-              </div>
-            </div>
-            <TouchOptimized>
-              <button className="text-gray-600 hover:text-gray-800 font-medium text-sm">
-                Manage
-              </button>
-            </TouchOptimized>
-          </div>
-        </div>
-        
-        <div className="mt-4 text-center">
-          <TouchOptimized>
-            <Link
-              to="/family"
-              className="text-sage-600 hover:text-sage-700 font-medium"
-            >
-              View All Family Members
-            </Link>
-          </TouchOptimized>
         </div>
       </div>
       
-      {/* Invitation Settings */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Invitation Settings</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Auto-Accept Members</p>
-              <p className="text-sm text-gray-600">
-                Automatically accept new family members without approval
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={autoAcceptMembers}
-                onChange={() => setAutoAcceptMembers(!autoAcceptMembers)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
+      {/* New Member Approval */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">New Member Approval</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            How new family members are approved
+          </p>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Require Admin Approval</p>
-              <p className="text-sm text-gray-600">
-                New members must be approved by a family admin
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={requireApproval}
-                onChange={() => setRequireApproval(!requireApproval)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Allow Member Invitations</p>
-              <p className="text-sm text-gray-600">
-                Let family members invite others to join
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={allowMemberInvites}
-                onChange={() => setAllowMemberInvites(!allowMemberInvites)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
+          <div className="space-y-3">
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="memberApproval"
+                  checked={newMemberApproval === 'automatic'}
+                  onChange={() => setNewMemberApproval('automatic')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Automatic</span>
+                  <p className="text-xs text-gray-600">Anyone with an invitation link can join</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="memberApproval"
+                  checked={newMemberApproval === 'admin'}
+                  onChange={() => setNewMemberApproval('admin')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Admin Approval</span>
+                  <p className="text-xs text-gray-600">Family admins must approve new members</p>
+                </div>
+              </label>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <label className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer">
+                <input
+                  type="radio"
+                  name="memberApproval"
+                  checked={newMemberApproval === 'vote'}
+                  onChange={() => setNewMemberApproval('vote')}
+                  className="w-4 h-4 text-sage-600 focus:ring-sage-500"
+                />
+                <div>
+                  <span className="font-medium text-gray-900">Family Vote</span>
+                  <p className="text-xs text-gray-600">Majority of family members must approve</p>
+                </div>
+              </label>
+            </TouchOptimized>
           </div>
         </div>
       </div>
       
       {/* Family Agreement */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Family Agreement</h3>
-        
-        <div className="p-4 bg-gray-50 rounded-lg mb-4">
-          <p className="font-medium text-gray-900 mb-2">Current Agreement</p>
-          <p className="text-sm text-gray-600 mb-3">
-            Your family has agreed to the following terms for sharing and managing memories:
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Family Privacy Agreement</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Create a privacy agreement for your family to follow
           </p>
-          <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
-            <li>Respect each other's privacy preferences</li>
-            <li>Ask permission before sharing sensitive memories</li>
-            <li>Be mindful of what memories are appropriate to share</li>
-            <li>Communicate openly about privacy concerns</li>
-          </ul>
+          
+          <div className="flex items-center space-x-3 mb-4">
+            <div className={`p-2 rounded-full ${
+              familyAgreementAccepted ? 'bg-green-100' : 'bg-yellow-100'
+            }`}>
+              <FileText className={`w-5 h-5 ${
+                familyAgreementAccepted ? 'text-green-600' : 'text-yellow-600'
+              }`} />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Family Privacy Agreement</p>
+              <p className="text-xs text-gray-500">
+                {familyAgreementAccepted 
+                  ? 'Accepted by all family members' 
+                  : 'Not yet accepted by all family members'}
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex space-x-3">
+            <TouchOptimized>
+              <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+                <Eye size={16} />
+                <span>View Agreement</span>
+              </button>
+            </TouchOptimized>
+            
+            <TouchOptimized>
+              <button className="flex items-center space-x-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+                <Edit size={16} />
+                <span>Edit Agreement</span>
+              </button>
+            </TouchOptimized>
+          </div>
         </div>
-        
-        <div className="flex space-x-3">
-          <TouchOptimized>
-            <button className="px-4 py-2 bg-sage-700 text-white rounded-lg hover:bg-sage-800 transition-colors">
-              Edit Agreement
-            </button>
-          </TouchOptimized>
+      </div>
+      
+      {/* Bulk Privacy Updates */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Bulk Privacy Updates</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Update privacy settings for multiple memories at once
+          </p>
           
           <TouchOptimized>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              View History
-            </button>
+            <Link
+              to="/search?bulk=privacy"
+              className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors"
+            >
+              <Settings size={16} />
+              <span>Bulk Privacy Editor</span>
+            </Link>
           </TouchOptimized>
         </div>
       </div>
     </div>
   );
   
-  const renderThirdPartyIntegrations = () => (
+  const renderIntegrations = () => (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Third-Party Integrations</h2>
       
-      {/* Connected Apps */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Connected Apps</h3>
-          <TouchOptimized>
-            <button
-              onClick={() => setShowConnectedApps(!showConnectedApps)}
-              className="text-sage-600 hover:text-sage-700 font-medium text-sm flex items-center space-x-1"
+      {/* Connected Services */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Connected Services</h3>
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          {connectedServices.map((service, index) => (
+            <div 
+              key={service.id} 
+              className={`p-4 ${index < connectedServices.length - 1 ? 'border-b border-gray-100' : ''}`}
             >
-              <span>{showConnectedApps ? 'Hide Details' : 'Show Details'}</span>
-              {showConnectedApps ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-          </TouchOptimized>
-        </div>
-        
-        <div className="space-y-4">
-          {connectedApps.map(app => (
-            <div key={app.id} className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center text-xl">
-                    {app.icon}
+                  <div className={`p-2 rounded-lg ${
+                    service.connected ? 'bg-green-100' : 'bg-gray-100'
+                  }`}>
+                    <ExternalLink className={`w-5 h-5 ${
+                      service.connected ? 'text-green-600' : 'text-gray-500'
+                    }`} />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-900">{app.name}</p>
-                    <p className="text-xs text-gray-500">Connected on {app.connectedOn}</p>
+                    <p className="font-medium text-gray-900">{service.name}</p>
+                    <p className="text-xs text-gray-500">
+                      {service.connected 
+                        ? `Last synced: ${service.lastSync}` 
+                        : 'Not connected'}
+                    </p>
                   </div>
                 </div>
-                <TouchOptimized>
-                  <button
-                    onClick={() => handleRevokeApp(app.id)}
-                    className="px-3 py-1 text-red-600 hover:text-red-700 font-medium text-sm"
-                  >
-                    Revoke
-                  </button>
-                </TouchOptimized>
+                
+                {service.connected ? (
+                  <TouchOptimized>
+                    <button
+                      onClick={() => handleDisconnectService(service.id)}
+                      className="text-red-600 hover:text-red-700 text-sm font-medium"
+                    >
+                      Disconnect
+                    </button>
+                  </TouchOptimized>
+                ) : (
+                  <TouchOptimized>
+                    <button className="text-sage-600 hover:text-sage-700 text-sm font-medium">
+                      Connect
+                    </button>
+                  </TouchOptimized>
+                )}
               </div>
-              
-              {showConnectedApps && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Permissions:</p>
-                  <ul className="text-sm text-gray-600 space-y-1">
-                    {app.permissions.map((permission, index) => (
-                      <li key={index} className="flex items-center space-x-2">
-                        <Check size={14} className="text-green-600" />
-                        <span>{permission}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Last accessed: {app.lastAccess}
-                  </p>
-                </div>
-              )}
             </div>
           ))}
-          
-          {connectedApps.length === 0 && (
-            <div className="text-center py-6">
-              <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                <Globe className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-600">No connected apps</p>
-            </div>
-          )}
-        </div>
-        
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-700">
-              Connected apps can access your MemoryMesh data based on the permissions you've granted. You can revoke access at any time.
-            </p>
-          </div>
         </div>
       </div>
       
-      {/* Data Sharing */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Data Sharing Settings</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Share Data with Third Parties</p>
-              <p className="text-sm text-gray-600">
-                Allow MemoryMesh to share anonymized data with third parties for service improvement
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={shareWithThirdParties}
-                onChange={() => setShareWithThirdParties(!shareWithThirdParties)}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
+      {/* API Access */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">API Access</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Manage developer API access to your data
+          </p>
           
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="font-medium text-gray-900">Allow API Access</p>
-              <p className="text-sm text-gray-600">
-                Enable third-party applications to access your data via API
-              </p>
+              <p className="font-medium text-gray-900">Developer API Access</p>
+              <p className="text-xs text-gray-500">Allow third-party apps to access your data</p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 className="sr-only peer"
                 checked={false}
-                onChange={() => {}}
+                readOnly
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
             </label>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Usage Analytics</p>
-              <p className="text-sm text-gray-600">
-                Share anonymous usage data to help improve MemoryMesh
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={true}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-        </div>
-        
-        <div className="mt-6 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-          <div className="flex items-start space-x-3">
-            <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-yellow-700 mb-1">Data Sharing Notice</p>
-              <p className="text-sm text-yellow-600">
-                When enabled, anonymized data may be shared with trusted partners to improve our services. No personally identifiable information is ever shared without your explicit consent.
-              </p>
-            </div>
+          <div className="bg-gray-50 rounded-lg p-3">
+            <p className="text-sm text-gray-600">
+              No API keys have been generated yet
+            </p>
           </div>
         </div>
       </div>
       
-      {/* Integration Audit */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Integration Audit Log</h3>
-        
-        <div className="space-y-3">
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-medium text-gray-900">Google Photos Connected</p>
-              <span className="text-xs text-gray-500">2024-06-15 10:30 AM</span>
-            </div>
-            <p className="text-sm text-gray-600">
-              Connected Google Photos with read and upload permissions
-            </p>
-          </div>
+      {/* Data Sharing Agreements */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Data Sharing Agreements</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Review how third-party services use your data
+          </p>
           
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-medium text-gray-900">Facebook Access Revoked</p>
-              <span className="text-xs text-gray-500">2024-05-20 03:15 PM</span>
-            </div>
-            <p className="text-sm text-gray-600">
-              Revoked access for Facebook integration
-            </p>
-          </div>
-          
-          <div className="p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-medium text-gray-900">API Key Generated</p>
-              <span className="text-xs text-gray-500">2024-04-10 09:45 AM</span>
-            </div>
-            <p className="text-sm text-gray-600">
-              Generated new API key for developer access
-            </p>
+          <div className="space-y-3">
+            {connectedServices.filter(s => s.connected).map(service => (
+              <div key={service.id} className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium text-gray-900">{service.name}</p>
+                  <TouchOptimized>
+                    <button className="text-sm text-sage-600 hover:text-sage-700">
+                      View Details
+                    </button>
+                  </TouchOptimized>
+                </div>
+                <div className="flex items-center space-x-2 text-xs text-gray-500">
+                  <Clock size={12} />
+                  <span>Agreement accepted on {service.lastSync}</span>
+                </div>
+              </div>
+            ))}
+            
+            {connectedServices.filter(s => s.connected).length === 0 && (
+              <p className="text-sm text-gray-600">
+                No active data sharing agreements
+              </p>
+            )}
           </div>
         </div>
-        
-        <div className="mt-4 text-center">
+      </div>
+      
+      {/* Integration Audit Trail */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Integration Audit Trail</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Track all third-party access to your data
+          </p>
+          
+          <div className="space-y-3">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-medium text-gray-900">Google Photos</p>
+                <span className="text-xs text-gray-500">2 days ago</span>
+              </div>
+              <p className="text-sm text-gray-600">Accessed 15 photos for sync</p>
+            </div>
+            
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between mb-1">
+                <p className="font-medium text-gray-900">iCloud</p>
+                <span className="text-xs text-gray-500">1 week ago</span>
+              </div>
+              <p className="text-sm text-gray-600">Accessed 8 photos for backup</p>
+            </div>
+          </div>
+          
           <TouchOptimized>
-            <button className="text-sage-600 hover:text-sage-700 font-medium">
-              View Full Audit Log
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium mt-3">
+              View Full Audit Trail
             </button>
           </TouchOptimized>
         </div>
@@ -1527,260 +1259,207 @@ export function PrivacyControlsPage() {
     </div>
   );
   
-  const renderComplianceFeatures = () => (
+  const renderCompliance = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Privacy Compliance</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Compliance & Consent</h2>
       
-      {/* Data Rights */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Data Rights</h3>
-        
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="bg-blue-100 p-2 rounded-full">
-                <Download className="w-5 h-5 text-blue-600" />
-              </div>
-              <h4 className="font-medium text-gray-900">Right to Access</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              You have the right to access all personal data we have about you.
-            </p>
-            <TouchOptimized>
-              <button
-                onClick={() => setActiveSection('data-controls')}
-                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
-              >
-                Export Your Data
-              </button>
-            </TouchOptimized>
-          </div>
-          
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="bg-red-100 p-2 rounded-full">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <h4 className="font-medium text-gray-900">Right to Erasure</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              You have the right to request deletion of your personal data.
-            </p>
-            <TouchOptimized>
-              <button
-                onClick={() => setActiveSection('data-controls')}
-                className="text-red-600 hover:text-red-700 font-medium text-sm"
-              >
-                Delete Your Data
-              </button>
-            </TouchOptimized>
-          </div>
-          
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="bg-green-100 p-2 rounded-full">
-                <Download className="w-5 h-5 text-green-600" />
-              </div>
-              <h4 className="font-medium text-gray-900">Right to Portability</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              You have the right to receive your data in a portable format.
-            </p>
-            <TouchOptimized>
-              <button
-                onClick={() => setActiveSection('data-controls')}
-                className="text-green-600 hover:text-green-700 font-medium text-sm"
-              >
-                Export in Portable Format
-              </button>
-            </TouchOptimized>
-          </div>
-          
-          <div className="p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3 mb-2">
-              <div className="bg-purple-100 p-2 rounded-full">
-                <X className="w-5 h-5 text-purple-600" />
-              </div>
-              <h4 className="font-medium text-gray-900">Right to Object</h4>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">
-              You have the right to object to processing of your personal data.
-            </p>
-            <TouchOptimized>
-              <button className="text-purple-600 hover:text-purple-700 font-medium text-sm">
-                Manage Processing Preferences
-              </button>
-            </TouchOptimized>
-          </div>
-        </div>
-      </div>
-      
-      {/* Consent Management */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Consent Management</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+      {/* GDPR Compliance */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">GDPR Compliance</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="font-medium text-gray-900">Data Processing Consent</p>
+              <p className="font-medium text-gray-900">GDPR Data Processing Consent</p>
               <p className="text-sm text-gray-600">
-                Allow MemoryMesh to process your personal data
+                Allow us to process your data in accordance with GDPR
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 className="sr-only peer"
-                checked={true}
-                onChange={() => {}}
+                checked={gdprConsent}
+                onChange={() => setGdprConsent(!gdprConsent)}
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
             </label>
           </div>
           
-          <div className="flex items-center justify-between">
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to access your data</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to correct your data</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to delete your data</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to data portability</span>
+            </div>
+          </div>
+          
+          <TouchOptimized>
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium mt-3">
+              View GDPR Policy
+            </button>
+          </TouchOptimized>
+        </div>
+      </div>
+      
+      {/* CCPA Compliance */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">CCPA Privacy Rights</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-medium text-gray-900">CCPA Data Processing Consent</p>
+              <p className="text-sm text-gray-600">
+                California Consumer Privacy Act rights
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={ccpaConsent}
+                onChange={() => setCcpaConsent(!ccpaConsent)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+            </label>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to know what data is collected</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to delete your data</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to opt-out of data sales</span>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">Right to non-discrimination</span>
+            </div>
+          </div>
+          
+          <TouchOptimized>
+            <button className="text-sm text-sage-600 hover:text-sage-700 font-medium mt-3">
+              View CCPA Policy
+            </button>
+          </TouchOptimized>
+        </div>
+      </div>
+      
+      {/* Marketing Consent */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Marketing Preferences</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <p className="font-medium text-gray-900">Marketing Communications</p>
               <p className="text-sm text-gray-600">
-                Receive marketing emails and promotions
+                Receive updates about new features and offers
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
                 className="sr-only peer"
-                checked={false}
-                onChange={() => {}}
+                checked={marketingConsent}
+                onChange={() => setMarketingConsent(!marketingConsent)}
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
             </label>
           </div>
           
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Cookies & Tracking</p>
-              <p className="text-sm text-gray-600">
-                Allow cookies and tracking technologies
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={true}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Research & Improvement</p>
-              <p className="text-sm text-gray-600">
-                Allow your data to be used for product improvement
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={true}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-        </div>
-        
-        <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-blue-700 mb-1">Consent History</p>
-              <p className="text-sm text-blue-600">
-                You last updated your consent preferences on June 15, 2024. You can update your preferences at any time.
-              </p>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            You can unsubscribe at any time by clicking the link in the footer of our emails
+          </p>
         </div>
       </div>
       
-      {/* Privacy Policies */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Privacy Policies & Terms</h3>
-        
-        <div className="space-y-3">
-          <TouchOptimized>
-            <Link
-              to="/privacy-policy"
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="bg-blue-100 p-2 rounded-full">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Privacy Policy</p>
-                  <p className="text-sm text-gray-600">Last updated: June 1, 2024</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </Link>
-          </TouchOptimized>
+      {/* Analytics Consent */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Analytics & Improvements</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <p className="font-medium text-gray-900">Usage Analytics</p>
+              <p className="text-sm text-gray-600">
+                Help us improve by sharing anonymous usage data
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={analyticsConsent}
+                onChange={() => setAnalyticsConsent(!analyticsConsent)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+            </label>
+          </div>
+          
+          <p className="text-xs text-gray-500 mt-1">
+            We never collect or analyze the content of your memories
+          </p>
+        </div>
+      </div>
+      
+      {/* Privacy Policy Acceptance */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Privacy Policy</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-start space-x-3 mb-4">
+            <div className="bg-blue-100 p-2 rounded-full flex-shrink-0">
+              <FileText className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Privacy Policy</p>
+              <p className="text-sm text-gray-600">
+                Last accepted: December 15, 2024
+              </p>
+            </div>
+          </div>
           
           <TouchOptimized>
-            <Link
-              to="/terms-of-service"
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="bg-green-100 p-2 rounded-full">
-                  <FileText className="w-5 h-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Terms of Service</p>
-                  <p className="text-sm text-gray-600">Last updated: May 15, 2024</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </Link>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <Link
-              to="/data-processing-agreement"
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="bg-purple-100 p-2 rounded-full">
-                  <FileText className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Data Processing Agreement</p>
-                  <p className="text-sm text-gray-600">Last updated: May 15, 2024</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </Link>
-          </TouchOptimized>
-          
-          <TouchOptimized>
-            <Link
-              to="/cookie-policy"
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <div className="flex items-center space-x-3">
-                <div className="bg-orange-100 p-2 rounded-full">
-                  <FileText className="w-5 h-5 text-orange-600" />
-                </div>
-                <div>
-                  <p className="font-medium text-gray-900">Cookie Policy</p>
-                  <p className="text-sm text-gray-600">Last updated: May 15, 2024</p>
-                </div>
-              </div>
-              <ChevronRight size={20} className="text-gray-400" />
-            </Link>
+            <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+              <Eye size={16} />
+              <span>View Privacy Policy</span>
+            </button>
           </TouchOptimized>
         </div>
       </div>
@@ -1791,10 +1470,10 @@ export function PrivacyControlsPage() {
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4">Caregiver Privacy</h2>
       
-      {/* Caregiver Access */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Caregiver Access</h3>
+      {/* Healthcare Provider Access */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Healthcare Provider Access</h3>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -1807,248 +1486,324 @@ export function PrivacyControlsPage() {
         </div>
         
         {caregiverAccess ? (
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="caregiverEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                Caregiver Email
-              </label>
-              <input
-                id="caregiverEmail"
-                type="email"
-                value={caregiverEmail}
-                onChange={(e) => setCaregiverEmail(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
-                placeholder="Enter caregiver's email address"
-              />
-            </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Allow healthcare providers to access specific memories
+            </p>
             
-            <div>
-              <p className="block text-sm font-medium text-gray-700 mb-2">
-                Caregiver Permissions
-              </p>
-              <div className="space-y-2">
-                <TouchOptimized>
-                  <label className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Caregiver Email
+                </label>
+                <input
+                  type="email"
+                  placeholder="Enter caregiver's email"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Access Permissions
+                </label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
+                      id="perm-view"
                       checked={caregiverPermissions.includes('view')}
                       onChange={() => {
                         if (caregiverPermissions.includes('view')) {
-                          setCaregiverPermissions(caregiverPermissions.filter(p => p !== 'view'));
+                          setCaregiverPermissions(prev => prev.filter(p => p !== 'view'));
                         } else {
-                          setCaregiverPermissions([...caregiverPermissions, 'view']);
+                          setCaregiverPermissions(prev => [...prev, 'view']);
                         }
                       }}
-                      className="rounded text-sage-600 focus:ring-sage-500"
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
                     />
-                    <span className="text-sm text-gray-700">View memories</span>
-                  </label>
-                </TouchOptimized>
-                
-                <TouchOptimized>
-                  <label className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <label htmlFor="perm-view" className="text-sm text-gray-700">
+                      View memories
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
+                      id="perm-comment"
+                      checked={caregiverPermissions.includes('comment')}
+                      onChange={() => {
+                        if (caregiverPermissions.includes('comment')) {
+                          setCaregiverPermissions(prev => prev.filter(p => p !== 'comment'));
+                        } else {
+                          setCaregiverPermissions(prev => [...prev, 'comment']);
+                        }
+                      }}
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+                    />
+                    <label htmlFor="perm-comment" className="text-sm text-gray-700">
+                      Add comments
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="perm-download"
+                      checked={caregiverPermissions.includes('download')}
+                      onChange={() => {
+                        if (caregiverPermissions.includes('download')) {
+                          setCaregiverPermissions(prev => prev.filter(p => p !== 'download'));
+                        } else {
+                          setCaregiverPermissions(prev => [...prev, 'download']);
+                        }
+                      }}
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+                    />
+                    <label htmlFor="perm-download" className="text-sm text-gray-700">
+                      Download memories
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="perm-upload"
                       checked={caregiverPermissions.includes('upload')}
                       onChange={() => {
                         if (caregiverPermissions.includes('upload')) {
-                          setCaregiverPermissions(caregiverPermissions.filter(p => p !== 'upload'));
+                          setCaregiverPermissions(prev => prev.filter(p => p !== 'upload'));
                         } else {
-                          setCaregiverPermissions([...caregiverPermissions, 'upload']);
+                          setCaregiverPermissions(prev => [...prev, 'upload']);
                         }
                       }}
-                      className="rounded text-sage-600 focus:ring-sage-500"
+                      className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
                     />
-                    <span className="text-sm text-gray-700">Upload memories</span>
-                  </label>
-                </TouchOptimized>
-                
-                <TouchOptimized>
-                  <label className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={caregiverPermissions.includes('manage')}
-                      onChange={() => {
-                        if (caregiverPermissions.includes('manage')) {
-                          setCaregiverPermissions(caregiverPermissions.filter(p => p !== 'manage'));
-                        } else {
-                          setCaregiverPermissions([...caregiverPermissions, 'manage']);
-                        }
-                      }}
-                      className="rounded text-sage-600 focus:ring-sage-500"
-                    />
-                    <span className="text-sm text-gray-700">Manage account settings</span>
-                  </label>
-                </TouchOptimized>
-                
-                <TouchOptimized>
-                  <label className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={caregiverPermissions.includes('family')}
-                      onChange={() => {
-                        if (caregiverPermissions.includes('family')) {
-                          setCaregiverPermissions(caregiverPermissions.filter(p => p !== 'family'));
-                        } else {
-                          setCaregiverPermissions([...caregiverPermissions, 'family']);
-                        }
-                      }}
-                      className="rounded text-sage-600 focus:ring-sage-500"
-                    />
-                    <span className="text-sm text-gray-700">Manage family members</span>
-                  </label>
-                </TouchOptimized>
+                    <label htmlFor="perm-upload" className="text-sm text-gray-700">
+                      Upload new memories
+                    </label>
+                  </div>
+                </div>
               </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Access Duration
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+                >
+                  <option>30 days</option>
+                  <option>90 days</option>
+                  <option>6 months</option>
+                  <option>1 year</option>
+                  <option>Indefinite</option>
+                </select>
+              </div>
+              
+              <TouchOptimized>
+                <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+                  <Plus size={16} />
+                  <span>Add Caregiver</span>
+                </button>
+              </TouchOptimized>
             </div>
-            
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-600">
+              Enable this feature to allow healthcare providers to access specific memories
+            </p>
+          </div>
+        )}
+      </div>
+      
+      {/* Medical Data Sharing */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Medical Data Sharing</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Control how medical-related memories are shared
+          </p>
+          
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium text-gray-900">Emergency Access</p>
-                <p className="text-sm text-gray-600">
-                  Allow caregiver to access your account in emergencies
+                <p className="font-medium text-gray-900">Medical Tag Privacy</p>
+                <p className="text-xs text-gray-500">
+                  Memories tagged as "medical" are only visible to you
                 </p>
               </div>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   className="sr-only peer"
-                  checked={emergencyAccess}
-                  onChange={() => setEmergencyAccess(!emergencyAccess)}
+                  checked={true}
+                  readOnly
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+              </label>
+            </div>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">HIPAA Compliance</p>
+                <p className="text-xs text-gray-500">
+                  Enable additional protections for health information
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={true}
+                  readOnly
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
               </label>
             </div>
           </div>
-        ) : (
-          <div className="text-center py-6">
-            <div className="w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-              <Users className="w-8 h-8 text-gray-400" />
+        </div>
+      </div>
+      
+      {/* Caregiver Oversight */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Caregiver Oversight</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Set boundaries for caregiver access
+          </p>
+          
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Caregiver Activity Logging
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+              >
+                <option>Log all activity</option>
+                <option>Log access only</option>
+                <option>Log changes only</option>
+                <option>No logging</option>
+              </select>
             </div>
-            <p className="text-gray-600 mb-4">No caregiver access configured</p>
-            <p className="text-sm text-gray-500 mb-4">
-              Enable caregiver access to allow a trusted person to help manage your memories and account.
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-gray-900">Caregiver Notifications</p>
+                <p className="text-xs text-gray-500">
+                  Notify you when caregivers access your memories
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={true}
+                  readOnly
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Emergency Access */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Emergency Access</h3>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={emergencyAccess}
+              onChange={() => setEmergencyAccess(!emergencyAccess)}
+            />
+            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+          </label>
+        </div>
+        
+        {emergencyAccess ? (
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-600 mb-4">
+              Designate trusted contacts who can access your account in an emergency
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Emergency Contact
+                </label>
+                <input
+                  type="email"
+                  placeholder="Enter email address"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Waiting Period
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+                >
+                  <option>No waiting period</option>
+                  <option>24 hours</option>
+                  <option>3 days</option>
+                  <option>7 days</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Time before emergency access is granted after a request
+                </p>
+              </div>
+              
+              <TouchOptimized>
+                <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+                  <Plus size={16} />
+                  <span>Add Emergency Contact</span>
+                </button>
+              </TouchOptimized>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+            <p className="text-sm text-gray-600">
+              Enable this feature to allow emergency access to your account
             </p>
           </div>
         )}
-        
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-700">
-              Caregiver access allows a trusted person to help manage your memories and account. They will receive an email invitation to access your account with the permissions you specify.
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Medical Data Sharing */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical Data Sharing</h3>
-        
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Healthcare Provider Access</p>
-              <p className="text-sm text-gray-600">
-                Allow healthcare providers to access memory data
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={false}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Memory Game Results Sharing</p>
-              <p className="text-sm text-gray-600">
-                Share cognitive game results with healthcare providers
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={false}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-gray-900">Health Data Integration</p>
-              <p className="text-sm text-gray-600">
-                Connect with health apps and services
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                className="sr-only peer"
-                checked={false}
-                onChange={() => {}}
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-            </label>
-          </div>
-        </div>
-        
-        <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-blue-700 mb-1">HIPAA Compliance</p>
-              <p className="text-sm text-blue-600">
-                When healthcare provider access is enabled, your data is handled in accordance with HIPAA regulations to ensure your medical information remains private and secure.
-              </p>
-            </div>
-          </div>
-        </div>
       </div>
       
       {/* Professional Confidentiality */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Professional Confidentiality</h3>
-        
-        <div className="p-4 bg-gray-50 rounded-lg mb-4">
-          <p className="font-medium text-gray-900 mb-2">Confidentiality Agreement</p>
-          <p className="text-sm text-gray-600 mb-3">
-            Any healthcare professionals or caregivers with access to your account are bound by the following confidentiality terms:
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Professional Confidentiality</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Set up confidentiality agreements for professional caregivers
           </p>
-          <ul className="text-sm text-gray-600 space-y-1 list-disc pl-5">
-            <li>All accessed information will be kept strictly confidential</li>
-            <li>Data will only be used for care-related purposes</li>
-            <li>No sharing of information with unauthorized parties</li>
-            <li>Compliance with all applicable privacy laws and regulations</li>
-            <li>Immediate reporting of any potential data breaches</li>
-          </ul>
+          
+          <TouchOptimized>
+            <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+              <FileText size={16} />
+              <span>Create Confidentiality Agreement</span>
+            </button>
+          </TouchOptimized>
         </div>
-        
-        <TouchOptimized>
-          <button className="px-4 py-2 bg-sage-700 text-white rounded-lg hover:bg-sage-800 transition-colors">
-            View Full Agreement
-          </button>
-        </TouchOptimized>
       </div>
     </div>
   );
   
-  const renderSecuritySettings = () => (
+  const renderSecurity = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">Security Settings</h2>
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Security Features</h2>
       
       {/* Two-Factor Authentication */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Two-Factor Authentication</h3>
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-medium text-gray-700">Two-Factor Authentication</h3>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
               type="checkbox"
@@ -2061,167 +1816,268 @@ export function PrivacyControlsPage() {
         </div>
         
         {twoFactorEnabled ? (
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="flex items-start space-x-3">
-              <Check className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-medium text-green-700 mb-1">Two-Factor Authentication is Enabled</p>
-                <p className="text-sm text-green-600">
-                  Your account is protected with an extra layer of security. You'll need to enter a verification code when signing in from a new device.
-                </p>
-                <div className="mt-3 flex space-x-3">
-                  <TouchOptimized>
-                    <button className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors">
-                      Change Method
-                    </button>
-                  </TouchOptimized>
-                  <TouchOptimized>
-                    <button className="px-3 py-1.5 border border-green-600 text-green-600 rounded-lg text-sm font-medium hover:bg-green-50 transition-colors">
-                      Backup Codes
-                    </button>
-                  </TouchOptimized>
-                </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="bg-green-100 p-2 rounded-full">
+                <Check className="w-5 h-5 text-green-600" />
               </div>
+              <div>
+                <p className="font-medium text-gray-900">Two-factor authentication is enabled</p>
+                <p className="text-xs text-gray-500">
+                  Your account is protected with an extra layer of security
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Authentication Method
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
+                >
+                  <option>SMS Text Message</option>
+                  <option>Authenticator App</option>
+                  <option>Email</option>
+                  <option>Security Key</option>
+                </select>
+              </div>
+              
+              <TouchOptimized>
+                <button className="text-sm text-sage-600 hover:text-sage-700 font-medium">
+                  Change 2FA Settings
+                </button>
+              </TouchOptimized>
             </div>
           </div>
         ) : (
-          <div>
-            <p className="text-gray-600 mb-4">
-              Add an extra layer of security to your account by enabling two-factor authentication. You'll need to enter a verification code when signing in from a new device.
-            </p>
+          <div className="bg-yellow-50 rounded-xl border border-yellow-200 p-4">
+            <div className="flex items-start space-x-3 mb-4">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-yellow-800">Your account is less secure</p>
+                <p className="text-sm text-yellow-700">
+                  Enable two-factor authentication to protect your account
+                </p>
+              </div>
+            </div>
+            
             <TouchOptimized>
-              <button className="px-4 py-2 bg-sage-700 text-white rounded-lg hover:bg-sage-800 transition-colors">
-                Enable Two-Factor Authentication
+              <button className="flex items-center space-x-2 bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors">
+                <Shield size={16} />
+                <span>Enable 2FA</span>
               </button>
             </TouchOptimized>
           </div>
         )}
       </div>
       
-      {/* Password Security */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Password Security</h3>
-        
-        <div className="p-4 bg-gray-50 rounded-lg mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-medium text-gray-900">Password Last Changed</p>
-            <span className="text-sm text-gray-600">
-              {passwordLastChanged ? passwordLastChanged.toLocaleDateString() : 'Never'}
-            </span>
+      {/* Login History */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Login History</h3>
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="p-4 border-b border-gray-200 bg-gray-50">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="font-medium text-gray-700">Device</div>
+              <div className="font-medium text-gray-700">Location</div>
+              <div className="font-medium text-gray-700">Time</div>
+            </div>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-            <div 
-              className={`h-2.5 rounded-full ${
-                passwordLastChanged && new Date().getTime() - passwordLastChanged.getTime() < 90 * 24 * 60 * 60 * 1000
-                  ? 'bg-green-600'
-                  : 'bg-yellow-600'
-              }`}
-              style={{ 
-                width: passwordLastChanged 
-                  ? `${Math.min(100, 100 - (new Date().getTime() - passwordLastChanged.getTime()) / (180 * 24 * 60 * 60 * 10))}%` 
-                  : '0%' 
-              }}
-            />
+          
+          <div className="divide-y divide-gray-100">
+            {[
+              { device: 'iPhone 15', location: 'New York, NY', time: '2 hours ago', current: true },
+              { device: 'MacBook Pro', location: 'New York, NY', time: '1 day ago', current: false },
+              { device: 'iPad', location: 'Boston, MA', time: '3 days ago', current: false }
+            ].map((login, index) => (
+              <div key={index} className="p-4">
+                <div className="grid grid-cols-3 gap-2 items-center">
+                  <div className="flex items-center space-x-2">
+                    <Smartphone className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-900">{login.device}</span>
+                    {login.current && (
+                      <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs">
+                        Current
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-gray-700">{login.location}</div>
+                  <div className="text-gray-700">{login.time}</div>
+                </div>
+              </div>
+            ))}
           </div>
-          <p className="text-xs text-gray-500">
-            {passwordLastChanged && new Date().getTime() - passwordLastChanged.getTime() > 90 * 24 * 60 * 60 * 1000
-              ? 'We recommend changing your password every 90 days for optimal security.'
-              : 'Your password was changed recently. Good job keeping your account secure!'}
-          </p>
+          
+          <div className="p-3 border-t border-gray-200 bg-gray-50 text-center">
+            <TouchOptimized>
+              <button className="text-sm text-sage-600 hover:text-sage-700 font-medium">
+                View Full Login History
+              </button>
+            </TouchOptimized>
+          </div>
         </div>
-        
-        <TouchOptimized>
-          <button className="px-4 py-2 bg-sage-700 text-white rounded-lg hover:bg-sage-800 transition-colors">
-            Change Password
-          </button>
-        </TouchOptimized>
       </div>
       
-      {/* Active Sessions */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Sessions</h3>
-        
-        <div className="space-y-3">
-          {activeSessions.map(session => (
-            <div key={session.id} className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-2">
-                  <Smartphone className="w-5 h-5 text-gray-600" />
-                  <p className="font-medium text-gray-900">{session.device}</p>
-                  {session.current && (
-                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs">
-                      Current
-                    </span>
-                  )}
-                </div>
-                {!session.current && (
-                  <TouchOptimized>
-                    <button
-                      onClick={() => handleRevokeSession(session.id)}
-                      className="text-red-600 hover:text-red-700 text-sm font-medium"
-                    >
-                      Revoke
-                    </button>
-                  </TouchOptimized>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{session.location}</span>
-                <span>
-                  Last active: {session.lastActive.toLocaleDateString()} {session.lastActive.toLocaleTimeString()}
-                </span>
-              </div>
+      {/* Suspicious Activity Alerts */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Security Alerts</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-medium text-gray-900">Suspicious Activity Alerts</p>
+              <p className="text-sm text-gray-600">
+                Get notified about unusual account activity
+              </p>
             </div>
-          ))}
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                className="sr-only peer"
+                checked={loginNotifications}
+                onChange={() => setLoginNotifications(!loginNotifications)}
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
+            </label>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="alert-new-device"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="alert-new-device" className="text-sm text-gray-700">
+                New device login
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="alert-new-location"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="alert-new-location" className="text-sm text-gray-700">
+                Login from new location
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="alert-password"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="alert-password" className="text-sm text-gray-700">
+                Password changes
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="alert-failed"
+                checked={true}
+                readOnly
+                className="w-4 h-4 text-sage-600 rounded focus:ring-sage-500"
+              />
+              <label htmlFor="alert-failed" className="text-sm text-gray-700">
+                Failed login attempts
+              </label>
+            </div>
+          </div>
         </div>
-        
-        <div className="mt-4 flex space-x-3">
-          <TouchOptimized>
-            <button
-              onClick={() => {
-                // Revoke all sessions except current
-                setActiveSessions(prev => prev.filter(session => session.current));
-              }}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Sign Out All Other Devices
-            </button>
-          </TouchOptimized>
+      </div>
+      
+      {/* Password Requirements */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Password Security</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-sm text-gray-600 mb-4">
+            Your password must meet these requirements
+          </p>
+          
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">At least 8 characters</span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">At least one uppercase letter</span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">At least one number</span>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-green-600" />
+              </div>
+              <span className="text-sm text-gray-700">At least one special character</span>
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <TouchOptimized>
+              <button className="flex items-center space-x-2 bg-sage-700 text-white px-4 py-2 rounded-lg hover:bg-sage-800 transition-colors">
+                <Lock size={16} />
+                <span>Change Password</span>
+              </button>
+            </TouchOptimized>
+          </div>
+        </div>
+      </div>
+      
+      {/* Session Management */}
+      <div>
+        <h3 className="text-lg font-medium text-gray-700 mb-3">Session Management</h3>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="font-medium text-gray-900">Auto Logout</p>
+              <p className="text-sm text-gray-600">
+                Automatically log out after period of inactivity
+              </p>
+            </div>
+            <div className="w-24">
+              <select
+                value={sessionTimeout}
+                onChange={(e) => setSessionTimeout(parseInt(e.target.value))}
+                className="w-full px-2 py-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500 text-sm"
+              >
+                <option value={15}>15 min</option>
+                <option value={30}>30 min</option>
+                <option value={60}>1 hour</option>
+                <option value={120}>2 hours</option>
+                <option value={0}>Never</option>
+              </select>
+            </div>
+          </div>
           
           <TouchOptimized>
-            <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
-              View Login History
+            <button className="flex items-center space-x-2 bg-red-100 text-red-700 px-4 py-2 rounded-lg hover:bg-red-200 transition-colors">
+              <LogOut size={16} />
+              <span>Log Out All Other Devices</span>
             </button>
           </TouchOptimized>
-        </div>
-      </div>
-      
-      {/* Login Alerts */}
-      <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Login Alerts</h3>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={loginAlerts}
-              onChange={() => setLoginAlerts(!loginAlerts)}
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-sage-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sage-600"></div>
-          </label>
-        </div>
-        
-        <p className="text-gray-600 mb-4">
-          Receive email alerts when someone logs into your account from a new device or location.
-        </p>
-        
-        <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-          <div className="flex items-start space-x-3">
-            <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-blue-700">
-              Login alerts help you detect suspicious activity on your account. We recommend keeping this feature enabled for optimal security.
-            </p>
-          </div>
         </div>
       </div>
     </div>
@@ -2229,22 +2085,22 @@ export function PrivacyControlsPage() {
   
   const renderSettingsContent = () => {
     switch (activeSection) {
-      case 'dashboard':
-        return renderPrivacyDashboard();
+      case 'overview':
+        return renderPrivacyOverview();
       case 'memory-privacy':
         return renderMemoryPrivacy();
       case 'data-controls':
         return renderDataControls();
       case 'family-privacy':
         return renderFamilyPrivacy();
-      case 'third-party':
-        return renderThirdPartyIntegrations();
+      case 'integrations':
+        return renderIntegrations();
       case 'compliance':
-        return renderComplianceFeatures();
+        return renderCompliance();
       case 'caregiver':
         return renderCaregiverPrivacy();
       case 'security':
-        return renderSecuritySettings();
+        return renderSecurity();
       default:
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2281,9 +2137,9 @@ export function PrivacyControlsPage() {
             <Shield className="w-8 h-8 text-white" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Privacy & Data</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Privacy Controls</h1>
             <p className="text-lg text-gray-600">
-              Control your privacy and manage your data
+              Manage your data and privacy settings
             </p>
           </div>
         </div>
@@ -2294,6 +2150,8 @@ export function PrivacyControlsPage() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search privacy settings..."
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sage-500 focus:border-sage-500"
             />
@@ -2312,7 +2170,7 @@ export function PrivacyControlsPage() {
                 className="flex items-center space-x-2 text-sage-600 hover:text-sage-700 transition-colors"
               >
                 <ArrowLeft size={20} />
-                <span>Back to Privacy Settings</span>
+                <span>Back to Privacy Controls</span>
               </button>
             </TouchOptimized>
           </div>
@@ -2321,48 +2179,15 @@ export function PrivacyControlsPage() {
         {renderSettingsContent()}
       </div>
       
-      {/* Save Button (when in a section) */}
-      {activeSection && activeSection !== 'data-controls' && (
-        <div className="flex justify-end mb-8">
-          <TouchOptimized>
-            <button
-              onClick={handleSaveSettings}
-              disabled={isSaving}
-              className="flex items-center space-x-2 bg-sage-700 text-white px-6 py-3 rounded-xl font-medium hover:bg-sage-800 disabled:opacity-50 transition-colors"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="animate-spin" size={20} />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save size={20} />
-                  <span>Save Settings</span>
-                </>
-              )}
-            </button>
-          </TouchOptimized>
-        </div>
-      )}
-      
-      {/* Success Message */}
-      {saveSuccess && (
-        <div className="fixed bottom-4 right-4 bg-green-100 border border-green-200 text-green-800 px-4 py-3 rounded-lg shadow-lg flex items-center space-x-2 z-50">
-          <Check size={20} className="text-green-600" />
-          <span>Settings saved successfully!</span>
-        </div>
-      )}
-      
-      {/* Delete Account Confirmation */}
+      {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full">
             <div className="flex items-center space-x-3 mb-4">
               <div className="bg-red-100 p-3 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <AlertCircle className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900">Delete Account?</h3>
+              <h3 className="text-xl font-semibold text-gray-900">Delete All Data?</h3>
             </div>
             
             <p className="text-gray-700 mb-2">
@@ -2370,7 +2195,7 @@ export function PrivacyControlsPage() {
             </p>
             
             <p className="text-gray-700 mb-6">
-              Are you absolutely sure you want to delete your account?
+              Are you absolutely sure you want to delete all your data?
             </p>
             
             <div className="flex space-x-3">
@@ -2385,52 +2210,10 @@ export function PrivacyControlsPage() {
               
               <TouchOptimized>
                 <button
-                  onClick={handleDeleteAccount}
+                  onClick={confirmDeleteAllData}
                   className="flex-1 bg-red-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
                 >
-                  Delete Account
-                </button>
-              </TouchOptimized>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Deactivate Account Confirmation */}
-      {showDeactivateConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-yellow-100 p-3 rounded-full">
-                <AlertTriangle className="w-6 h-6 text-yellow-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900">Deactivate Account?</h3>
-            </div>
-            
-            <p className="text-gray-700 mb-2">
-              Your account will be temporarily disabled. You can reactivate it by logging in within 30 days.
-            </p>
-            
-            <p className="text-gray-700 mb-6">
-              After 30 days, your account and all associated data will be permanently deleted.
-            </p>
-            
-            <div className="flex space-x-3">
-              <TouchOptimized>
-                <button
-                  onClick={() => setShowDeactivateConfirm(false)}
-                  className="flex-1 bg-gray-100 text-gray-700 px-4 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-              </TouchOptimized>
-              
-              <TouchOptimized>
-                <button
-                  onClick={handleDeactivateAccount}
-                  className="flex-1 bg-yellow-600 text-white px-4 py-3 rounded-lg font-medium hover:bg-yellow-700 transition-colors"
-                >
-                  Deactivate Account
+                  Delete All Data
                 </button>
               </TouchOptimized>
             </div>
