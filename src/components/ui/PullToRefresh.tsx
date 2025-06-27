@@ -47,7 +47,7 @@ export function PullToRefresh({
     
     startY.current = e.touches[0].clientY;
     currentY.current = startY.current;
-    setIsPulling(true);
+    setIsPulling(false);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {

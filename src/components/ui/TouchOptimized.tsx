@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 
 interface TouchOptimizedProps {
@@ -17,8 +17,8 @@ export function TouchOptimized({
   disabled = false 
 }: TouchOptimizedProps) {
   const { isTouchDevice } = useDeviceDetection();
-  const [isPressed, setIsPressed] = React.useState(false);
-  const longPressTimer = React.useRef<NodeJS.Timeout>();
+  const [isPressed, setIsPressed] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout>();
 
   const handleTouchStart = () => {
     if (disabled) return;
