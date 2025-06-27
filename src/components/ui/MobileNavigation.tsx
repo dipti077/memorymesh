@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Calendar, Plus, Users, Search } from 'lucide-react';
+import { Home, Calendar, Plus, Users, Search, Settings } from 'lucide-react';
 import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 import { TouchOptimized } from './TouchOptimized';
 
@@ -15,7 +15,7 @@ export function MobileNavigation() {
     { name: 'Timeline', href: '/timeline', icon: Calendar },
     { name: 'Upload', href: '/upload', icon: Plus, isSpecial: true },
     { name: 'Family', href: '/family', icon: Users },
-    { name: 'Search', href: '/search', icon: Search },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   return (

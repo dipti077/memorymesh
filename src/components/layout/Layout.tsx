@@ -3,10 +3,9 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { MobileNavigation } from '../ui/MobileNavigation';
 import { BreadcrumbNavigation } from '../navigation/BreadcrumbNavigation';
-import { QuickActionFAB } from '../navigation/QuickActionFAB';
-import { KeyboardNavigation } from '../navigation/KeyboardNavigation';
 import { OfflineIndicator } from '../ui/OfflineIndicator';
 import { InstallPrompt } from '../ui/InstallPrompt';
+import { KeyboardNavigation } from '../navigation/KeyboardNavigation';
 import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 import { UploadButton } from '../upload/UploadButton';
 

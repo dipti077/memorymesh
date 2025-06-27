@@ -13,6 +13,10 @@ import { GamesPage } from './pages/GamesPage';
 import { GameDetailPage } from './pages/GameDetailPage';
 import { GamePlayPage } from './pages/GamePlayPage';
 import { GameProgressPage } from './pages/GameProgressPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { SearchPage } from './pages/SearchPage';
+import { ActivityPage } from './pages/ActivityPage';
+import { MessagingPage } from './pages/MessagingPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -220,10 +224,7 @@ function App() {
             user ? (
               hasCompletedOnboarding ? (
                 <Layout>
-                  <div className="text-center py-12">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Search Memories</h1>
-                    <p className="text-gray-600">Coming soon...</p>
-                  </div>
+                  <SearchPage />
                 </Layout>
               ) : (
                 <Navigate to="/onboarding" replace />
@@ -233,16 +234,48 @@ function App() {
             )
           }
         />
+        
         <Route
           path="/settings"
           element={
             user ? (
               hasCompletedOnboarding ? (
                 <Layout>
-                  <div className="text-center py-12">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Settings</h1>
-                    <p className="text-gray-600">Coming soon...</p>
-                  </div>
+                  <SettingsPage />
+                </Layout>
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
+        />
+        
+        <Route
+          path="/activity"
+          element={
+            user ? (
+              hasCompletedOnboarding ? (
+                <Layout>
+                  <ActivityPage />
+                </Layout>
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
+            ) : (
+              <Navigate to="/auth" replace />
+            )
+          }
+        />
+        
+        <Route
+          path="/messaging"
+          element={
+            user ? (
+              hasCompletedOnboarding ? (
+                <Layout>
+                  <MessagingPage />
                 </Layout>
               ) : (
                 <Navigate to="/onboarding" replace />
