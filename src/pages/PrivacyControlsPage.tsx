@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Shield, Lock, Eye, EyeOff, Download, Trash2, Users, 
   Settings, Bell, Calendar, FileText, Check, X, 
-  AlertTriangle, Info, ChevronRight, ChevronDown, 
+  AlertTriangle, Info, ChevronRight, ChevronDown, ChevronUp,
   Database, Smartphone, Globe, ArrowLeft, Loader2,
-  UserPlus, Key, LogOut, RefreshCw, Clock, Save
+  UserPlus, Key, LogOut, RefreshCw, Clock, Save, Search,
+  MessageCircle, User
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
