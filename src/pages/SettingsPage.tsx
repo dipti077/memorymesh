@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { 
   Settings, User, Bell, Shield, Accessibility, 
   Database, Users, Palette, Search, ChevronRight, 
-  Camera, Globe, Clock, Moon, Sun, Eye, VolumeX, 
-  Smartphone, LogOut, Trash2, Download, Lock, Mail,
+  Camera, Globe, Clock, Moon, Sun, Smartphone, LogOut, Trash2, Download, Lock, Mail,
   Save, AlertTriangle, Check, X, Loader2
 } from 'lucide-react';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
