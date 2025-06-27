@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { ArrowLeft } from '../components/ui/ArrowLeft';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
+import { Grid } from '../components/ui/Grid';
+import { List } from '../components/ui/List';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { useAuth } from '../hooks/useAuth';
 import { ProfilePhotoUploader } from '../components/settings/ProfilePhotoUploader';
