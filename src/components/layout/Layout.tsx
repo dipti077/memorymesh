@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { MobileNavigation } from '../ui/MobileNavigation';
@@ -8,6 +8,10 @@ import { InstallPrompt } from '../ui/InstallPrompt';
 import { KeyboardNavigation } from '../navigation/KeyboardNavigation';
 import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 import { UploadButton } from '../upload/UploadButton';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
+import { WelcomeTour } from '../ui/WelcomeTour';
+import { FeedbackForm } from '../ui/FeedbackForm';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,6 +20,65 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isMobile } = useDeviceDetection();
+  const [showTour, setShowTour] = useLocalStorage('memorymesh_show_tour', true);
+  const [showFeedback, setShowFeedback] = useState(false);
+  
+  // Show feedback form after 5 minutes of usage
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const hasGivenFeedback = localStorage.getItem('memorymesh_feedback_given');
+      if (!hasGivenFeedback) {
+        setShowFeedback(true);
+      }
+    }, 5 * 60 * 1000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Tour steps
+  const tourSteps = [
+    {
+      target: '.header-logo',
+      title: 'Welcome to MemoryMesh',
+      content: 'This is your family memory preservation platform. Let\'s take a quick tour to help you get started.',
+      position: 'bottom'
+    },
+    {
+      target: '.sidebar-nav',
+      title: 'Navigation',
+      content: 'Use the sidebar to navigate between different sections of the app.',
+      position: 'right'
+    },
+    {
+      target: '.upload-button',
+      title: 'Upload Memories',
+      content: 'Click here to add new photos, videos, audio recordings, or written stories.',
+      position: 'bottom'
+    },
+    {
+      target: '.search-bar',
+      title: 'Search',
+      content: 'Quickly find memories by searching for people, places, dates, or tags.',
+      position: 'bottom'
+    },
+    {
+      target: '.timeline-view',
+      title: 'Timeline',
+      content: 'View your family memories organized chronologically.',
+      position: 'left'
+    }
+  ];
+  
+  const handleTourComplete = () => {
+    setShowTour(false);
+    localStorage.setItem('memorymesh_tour_completed', 'true');
+  };
+  
+  const handleFeedbackSubmit = (feedback: { rating: number; comment: string; email?: string }) => {
+    // In a real app, you would send this to your backend
+    console.log('Feedback submitted:', feedback);
+    localStorage.setItem('memorymesh_feedback_given', 'true');
+  };
 
   return (
     <div className="min-h-screen bg-sage-50">
@@ -41,7 +104,9 @@ export function Layout({ children }: LayoutProps) {
             <BreadcrumbNavigation />
             
             {/* Page Content */}
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
           </div>
         </main>
       </div>
@@ -50,7 +115,24 @@ export function Layout({ children }: LayoutProps) {
       <MobileNavigation />
       
       {/* Quick Action FAB */}
-      <UploadButton variant="fab" />
+      <UploadButton variant="fab" className="upload-button" />
+      
+      {/* Welcome Tour */}
+      {showTour && (
+        <WelcomeTour
+          steps={tourSteps}
+          isOpen={showTour}
+          onClose={() => setShowTour(false)}
+          onComplete={handleTourComplete}
+        />
+      )}
+      
+      {/* Feedback Form */}
+      <FeedbackForm
+        isOpen={showFeedback}
+        onClose={() => setShowFeedback(false)}
+        onSubmit={handleFeedbackSubmit}
+      />
     </div>
   );
 }

@@ -5,6 +5,21 @@ import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import App from './App.tsx';
 import './index.css';
+import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
+import { NetworkErrorHandler } from './components/ui/NetworkErrorHandler.tsx';
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(registration => {
+        console.log('SW registered:', registration);
+      })
+      .catch(error => {
+        console.error('SW registration failed:', error);
+      });
+  });
+}
 
 // Initialize Capacitor plugins
 const initializeApp = async () => {
@@ -22,7 +37,11 @@ const initializeApp = async () => {
 initializeApp().then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <NetworkErrorHandler>
+          <App />
+        </NetworkErrorHandler>
+      </ErrorBoundary>
     </StrictMode>
   );
 });
