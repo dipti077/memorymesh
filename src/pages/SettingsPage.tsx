@@ -5,6 +5,7 @@ import {
   Camera, Globe, Clock, Moon, Sun, Smartphone, LogOut, Trash2, Download, Lock, Mail,
   Save, AlertTriangle, Check, X, Loader2
 } from 'lucide-react';
+import { ArrowLeft } from '../components/ui/ArrowLeft';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { useAuth } from '../hooks/useAuth';
