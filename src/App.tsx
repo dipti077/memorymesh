@@ -18,6 +18,7 @@ import { SearchPage } from './pages/SearchPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { MessagingPage } from './pages/MessagingPage';
 import { PrivacyControlsPage } from './pages/PrivacyControlsPage';
+import { DesignSystemPage } from './pages/DesignSystemPage';
 import { useAuth } from './hooks/useAuth';
 
 function App() {
@@ -47,6 +48,9 @@ function App() {
           element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
         />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
+        {/* Design System Route */}
+        <Route path="/design-system" element={<DesignSystemPage />} />
         
         {/* Onboarding Route */}
         <Route
