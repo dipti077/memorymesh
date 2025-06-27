@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { 
   Search as SearchIcon, Grid, List, Mic, Filter, 
   Sparkles, Calendar, MapPin, X, Save, Download, 
-  Share2, ArrowLeft, Layers, Bookmark, Clock
+  Share2, ArrowLeft, Layers, Bookmark, Clock, Star
 } from 'lucide-react';
 import { SearchBar } from '../components/search/SearchBar';
 import { SearchFilters } from '../components/search/SearchFilters';
