@@ -8,8 +8,8 @@ import './index.css';
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx';
 import { NetworkErrorHandler } from './components/ui/NetworkErrorHandler.tsx';
 
-// Register service worker for PWA
-if ('serviceWorker' in navigator) {
+// Register service worker for PWA (only in supported environments)
+if ('serviceWorker' in navigator && window.self === window.top) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then(registration => {
