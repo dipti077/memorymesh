@@ -4,10 +4,12 @@ import {
   Settings, Bell, AlertCircle, FileText, Check, X, 
   ChevronRight, ChevronDown, ChevronUp, Filter, Search,
   User, MessageCircle, Calendar, Clock, Smartphone, 
-  ExternalLink, ToggleLeft, ToggleRight, HelpCircle
+  ExternalLink, ToggleLeft, ToggleRight, HelpCircle,
+  Plus, MapPin, Edit, LogOut
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TouchOptimized } from '../components/ui/TouchOptimized';
+import { ArrowLeft } from '../components/ui/ArrowLeft';
 import { useDeviceDetection } from '../hooks/useDeviceDetection';
 import { useAuth } from '../hooks/useAuth';
 
